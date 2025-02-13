@@ -1,32 +1,50 @@
-# Node.js dependencies
+# OSX
+.DS_Store
+
+# Xcode
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+**/.xcode.env.local
+
+# Android/IntelliJ
+android/app/build/
+android/build/
+build/
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+*.keystore
+!debug.keystore
+
+# Node.js dependencies and logs
 node_modules/
-package-lock.json
-yarn.lock
+npm-debug.log
+yarn-error.log
 .pnpm-debug.log
 .npm/
 
 # React Native build artifacts
-android/app/build/
-android/build/
 ios/Pods/
 ios/build/
 
-# IDE/editor specific files
-.vscode/
-.idea/
-*.iml
-
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-# Logs & debugging
-*.log
-logs/
-*.log.*
-*.trace
-
-# Babel, Metro, and cache files
+# Metro, Babel, and cache files
 babel.config.js
 metro.config.js
 jest/
@@ -35,8 +53,44 @@ coverage/
 cache/
 tmp/
 .expo/
+.expo-shared/
+dist/
+web-build/
 
-# Environment files
+# Fastlane
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+
+# Bundle artifacts
+*.jsbundle
+
+# Ruby / CocoaPods
+**/Pods/
+/vendor/bundle/
+
+# Temporary files created by Metro to check the health of the file watcher
+.metro-health-check*
+
+# Testing
+/coverage
+
+# Logs & debugging
+*.log
+logs/
+*.log.*
+*.trace
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Environment variables
 .env
 .env.local
 .env.development
@@ -44,10 +98,16 @@ tmp/
 .env.test
 .env*.local
 
+# NPM/Yarn debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React Native Packager
+.expo/
+
 # Xcode-specific
 ios/*.xcworkspace
-ios/Pods/
-ios/build/
 ios/DerivedData/
 xcuserdata/
 *.pbxuser
@@ -58,35 +118,12 @@ xcuserdata/
 # Android-specific
 android/.gradle/
 android/.idea/
-android/local.properties
-android/app/*.keystore
-android/app/proguard-rules.pro
 android/key.properties
 
-# Fastlane
+# Fastlane build files
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/
 fastlane/test_output/
 
-# Generated files
-*.keystore
-debug.keystore
-release.keystore
-*.jks
-*.p8
-*.p12
-*.cer
-*.crt
-*.pem
-
-# NPM debug files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# React Native Packager
-.expo/
-dist/
-.expo-shared/
-web-build/
+# Git ignore list complete
