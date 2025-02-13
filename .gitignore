@@ -1,0 +1,92 @@
+# Node.js dependencies
+node_modules/
+package-lock.json
+yarn.lock
+.pnpm-debug.log
+.npm/
+
+# React Native build artifacts
+android/app/build/
+android/build/
+ios/Pods/
+ios/build/
+
+# IDE/editor specific files
+.vscode/
+.idea/
+*.iml
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs & debugging
+*.log
+logs/
+*.log.*
+*.trace
+
+# Babel, Metro, and cache files
+babel.config.js
+metro.config.js
+jest/
+coverage/
+.nyc_output/
+cache/
+tmp/
+.expo/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env*.local
+
+# Xcode-specific
+ios/*.xcworkspace
+ios/Pods/
+ios/build/
+ios/DerivedData/
+xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Android-specific
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/*.keystore
+android/app/proguard-rules.pro
+android/key.properties
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Generated files
+*.keystore
+debug.keystore
+release.keystore
+*.jks
+*.p8
+*.p12
+*.cer
+*.crt
+*.pem
+
+# NPM debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React Native Packager
+.expo/
+dist/
+.expo-shared/
+web-build/
