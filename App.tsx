@@ -130,6 +130,7 @@ const App = () => {
             injectedJavaScript={INJECTED_JS}
             javaScriptEnabled={true}
             javaScriptCanOpenWindowsAutomatically={true}
+            onMessage={() => {}}
             domStorageEnabled
             startInLoadingState
             renderLoading={() => <ActivityIndicator size="large" color="#0000ff" />}
