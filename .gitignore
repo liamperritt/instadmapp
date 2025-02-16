@@ -126,4 +126,7 @@ fastlane/Preview.html
 fastlane/screenshots/
 fastlane/test_output/
 
+# Firebase files
+google-services.json
+
 # Git ignore list complete

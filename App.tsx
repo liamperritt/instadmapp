@@ -1,6 +1,9 @@
-import React, { useRef, useState } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import React, { useRef, useState, useEffect } from "react";
+import { View, ActivityIndicator, StyleSheet, Alert } from "react-native";
 import WebView from "react-native-webview";
+import messaging from '@react-native-firebase/messaging';
+import firebase from '@react-native-firebase/app';
+import { API_KEY, AUTH_DOMAIN, PROJECT_ID, STORAGE_BUCKET, MESSAGING_SENDER_ID, APP_ID } from '@env';
 
 const ELEMENTS_TO_REMOVE = JSON.stringify([
   // DMs
@@ -40,6 +43,16 @@ const INJECTED_JS = `
   }, 100);
 `;
 
+const firebaseConfig = {
+  apiKey: API_KEY,
+  authDomain: AUTH_DOMAIN,
+  projectId: PROJECT_ID,
+  storageBucket: STORAGE_BUCKET,
+  messagingSenderId: MESSAGING_SENDER_ID,
+  appId: APP_ID,
+};
+
+
 const App = () => {
   const webViewRef = useRef(null);
   const baseUrl = `https://www.instagram.com/`;
@@ -72,6 +85,42 @@ const App = () => {
       webViewRef.current.injectJavaScript(`window.location.href = '${targetUrl}';`);
     }
   };
+
+  const handleFirebaseMessages = async () => {
+    if (!firebase.apps.length) {
+      await firebase.initializeApp(firebaseConfig);
+    }
+    if (!firebase.apps.length) {
+      throw new Error('Firebase initialization failed');
+    }
+
+    // Request permissions on iOS
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+    if (enabled) {
+      console.log('Authorization status:', authStatus);
+    }
+
+    const token = await messaging().getToken();
+
+    // Handle incoming messages
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      Alert.alert('A new FCM message arrived!', JSON.stringify(remoteMessage));
+    });
+
+    return unsubscribe;
+  };
+
+  useEffect(() => {
+    const initializeFirebase = async () => {
+      const unsubscribe = await handleFirebaseMessages();
+      return unsubscribe;
+    };
+    initializeFirebase();
+  }, []);
 
   return (
       <View style={styles.container}>
