@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { SafeAreaView, ActivityIndicator, StyleSheet } from "react-native";
 import WebView from "react-native-webview";
 
 const ELEMENTS_TO_REMOVE = JSON.stringify([
@@ -74,7 +74,7 @@ const App = () => {
   };
 
   return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <WebView
             ref={webViewRef}
             source={{ uri: sourceUrl }}
@@ -88,7 +88,7 @@ const App = () => {
             onNavigationStateChange={redirectToSourceUrl}
             onOpenWindow={openLinkInWebView}
         />
-      </View>
+      </SafeAreaView>
   );
 };
 
