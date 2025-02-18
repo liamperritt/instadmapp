@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
-import { SafeAreaView, ActivityIndicator, StyleSheet } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { SafeAreaView, ActivityIndicator, StyleSheet, BackHandler } from "react-native";
 import WebView from "react-native-webview";
 
 const ELEMENTS_TO_REMOVE = JSON.stringify([
@@ -49,6 +49,7 @@ const App = () => {
     `${baseUrl}reels/`,
   ];
   const [currentUrl, setCurrentUrl] = useState(sourceUrl);
+  const [canGoBack, setCanGoBack] = useState(false);
 
   const redirectToSourceUrl = (navState) => {
     if (
@@ -62,16 +63,28 @@ const App = () => {
     setCurrentUrl(navState.url);
   };
 
-  const openLinkInWebView = (syntheticEvent) => {
-    const { nativeEvent } = syntheticEvent;
-    const { targetUrl } = nativeEvent;
-    if (targetUrl.startsWith(baseUrl)) {
+  const openLinkInWebView = (nativeEvent) => {
+    if (nativeEvent.targetUrl.startsWith(baseUrl)) {
       // Prevent app links from opening in the device's default browser
       webViewRef.current.stopLoading();
       // Instead, open the link in the WebView
-      webViewRef.current.injectJavaScript(`window.location.href = '${targetUrl}';`);
+      webViewRef.current.injectJavaScript(`window.location.href = '${nativeEvent.targetUrl}';`);
     }
   };
+
+  const handleBackPress = () => {
+    if (canGoBack) {
+      webViewRef.current.goBack();
+    } else {
+      BackHandler.exitApp();
+    }
+    return true;
+  };
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => backHandler.remove(); // Cleanup
+  }, [canGoBack]); // Re-run the effect when canGoBack changes
 
   return (
       <SafeAreaView style={styles.container}>
@@ -85,8 +98,9 @@ const App = () => {
             domStorageEnabled
             startInLoadingState
             renderLoading={() => <ActivityIndicator size="large" color="#0000ff" />}
-            onNavigationStateChange={redirectToSourceUrl}
-            onOpenWindow={openLinkInWebView}
+            onNavigationStateChange={(navState) => {redirectToSourceUrl(navState)}}
+            onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
+            onLoadProgress={(syntheticEvent) => {setCanGoBack(syntheticEvent.nativeEvent.canGoBack)}}
         />
       </SafeAreaView>
   );
