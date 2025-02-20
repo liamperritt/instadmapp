@@ -68,6 +68,11 @@ const App = () => {
       (navState.url === baseUrl && currentUrl !== baseUrl) // Redirect from base Url, but avoid infinite loops
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
+      if (currentUrl === sourceUrl && navState.canGoBack){
+        // If we were already on the source URL, go back to the source URL
+        webViewRef.current.goBack();
+        return;
+      }
       webViewRef.current.stopLoading();
       webViewRef.current.injectJavaScript(`window.location.href = '${sourceUrl}';`);
     }
