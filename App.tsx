@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { SafeAreaView, ActivityIndicator, StyleSheet, BackHandler } from "react-native";
 import WebView from "react-native-webview";
 
-const ELEMENTS_TO_REMOVE = JSON.stringify([
+const DEFAULT_FILTERS = [
   // DMs
   ".xa0zjtf.x1e56ztr.x2lah0s.x1c4vz4f", // Notes panel
   "div.xcdnw81.xurb0ha.xwib8y2.x1sxyh0.x1y1aw1k.xl56j7k.x78zum5.x1ypdohk.x17r0tee.x1sy0etr.xd10rxx.x1ejq31n.xjbqb8w.x6s0dn4.x1a2a7pz.xggy1nq.x1hl2dhg.x16tdsg8.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.xe8uvvx.x9f619.xm0m39n.x1qhh985.xcfux6l.x972fbf.x1i10hfl:nth-of-type(3)", // Heart icon
@@ -19,26 +19,7 @@ const ELEMENTS_TO_REMOVE = JSON.stringify([
   ".xs5motx.x1rlzn12.xysbk4d.x1xdureb.xc3tme8", // Account insights
   // Home
   ".x1nhvcw1.x1oa3qoh.x6s0dn4.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619 > .x1nhvcw1.x1oa3qoh.x1qjc9v5.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619", // Feed (just in case redirects fail)
-]);
-
-const INJECTED_JS = `
-  removeElements = () => {
-    // List of elements to hide by class or CSS selector
-    const elementsToRemove = ${ELEMENTS_TO_REMOVE};
-
-    // Hide each element by class or CSS selector
-    elementsToRemove.forEach(selector => {
-      const element = document.querySelector(selector);
-      if (element) {
-        element.style.display = "none"; // Hide the element
-      }
-    });
-  };
-
-  setInterval(() => {
-    removeElements();
-  }, 100);
-`;
+];
 
 const App = () => {
   const webViewRef = useRef(null);
@@ -48,8 +29,39 @@ const App = () => {
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
   ];
+  const configUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/instagram/";
+
   const [currentUrl, setCurrentUrl] = useState(sourceUrl);
   const [canGoBack, setCanGoBack] = useState(false);
+  const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
+
+  const injectedJavaScript = `
+    removeElements = () => {
+      // List of elements to hide by class or CSS selector
+      const elementsToRemove = ${filtersConfig};
+      // Hide each element by class or CSS selector
+      elementsToRemove.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) {
+          element.style.display = "none"; // Hide the element
+        }
+      });
+    };
+    setInterval(() => {
+      removeElements();
+    }, 100);
+  `;
+
+  const fetchFiltersConfig = () => {
+    fetch(`${configUrl}filters.json?cache_bust=true`)
+      .then(response => response.json())
+      .then(data => {
+        setFiltersConfig(JSON.stringify(data));
+      }).catch(error => {
+        console.error("Failed to fetch filters config:", error);
+      }
+    );
+  };
 
   const redirectToSourceUrl = (navState) => {
     if (
@@ -82,6 +94,10 @@ const App = () => {
   };
 
   useEffect(() => {
+    fetchFiltersConfig();
+  }, []); // Run once on component mount
+
+  useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
     return () => backHandler.remove(); // Cleanup
   }, [canGoBack]); // Re-run the effect when canGoBack changes
@@ -91,7 +107,7 @@ const App = () => {
         <WebView
             ref={webViewRef}
             source={{ uri: sourceUrl }}
-            injectedJavaScript={INJECTED_JS}
+            injectedJavaScript={injectedJavaScript}
             javaScriptEnabled={true}
             javaScriptCanOpenWindowsAutomatically={true}
             onMessage={() => {}}
