@@ -31,7 +31,7 @@ const App = () => {
   ];
   const configUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/instagram/";
 
-  const [currentUrl, setCurrentUrl] = useState(sourceUrl);
+  const [currentUrl, setCurrentUrl] = useState(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
 
