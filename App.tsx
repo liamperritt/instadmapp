@@ -3,7 +3,6 @@ import { SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Alert } from 
 import WebView from "react-native-webview";
 import messaging from '@react-native-firebase/messaging';
 import firebase from '@react-native-firebase/app';
-import { API_KEY, AUTH_DOMAIN, PROJECT_ID, STORAGE_BUCKET, MESSAGING_SENDER_ID, APP_ID } from '@env';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -25,12 +24,12 @@ const DEFAULT_FILTERS = [
 ];
 
 const firebaseConfig = {
-  apiKey: API_KEY,
-  authDomain: AUTH_DOMAIN,
-  projectId: PROJECT_ID,
-  storageBucket: STORAGE_BUCKET,
-  messagingSenderId: MESSAGING_SENDER_ID,
-  appId: APP_ID,
+  apiKey: process.env.API_KEY,
+  authDomain: process.env.AUTH_DOMAIN,
+  projectId: process.env.PROJECT_ID,
+  storageBucket: process.env.STORAGE_BUCKET,
+  messagingSenderId: process.env.MESSAGING_SENDER_ID,
+  appId: process.env.APP_ID,
 };
 
 
@@ -121,6 +120,12 @@ const App = () => {
     }
 
     const token = await messaging().getToken();
+    console.log('FCM token:', token);
+
+    // Register background handler
+    messaging().setBackgroundMessageHandler(async remoteMessage => {
+      console.log('Message handled in the background!', remoteMessage);
+    });
 
     // Handle incoming messages
     const unsubscribe = messaging().onMessage(async remoteMessage => {
