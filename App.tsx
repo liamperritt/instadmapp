@@ -1,11 +1,11 @@
-import React, { useRef, useState, useEffect } from "react";
-import { View, ActivityIndicator, StyleSheet, Alert } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { SafeAreaView, ActivityIndicator, StyleSheet, BackHandler } from "react-native";
 import WebView from "react-native-webview";
 import messaging from '@react-native-firebase/messaging';
 import firebase from '@react-native-firebase/app';
 import { API_KEY, AUTH_DOMAIN, PROJECT_ID, STORAGE_BUCKET, MESSAGING_SENDER_ID, APP_ID } from '@env';
 
-const ELEMENTS_TO_REMOVE = JSON.stringify([
+const DEFAULT_FILTERS = [
   // DMs
   ".xa0zjtf.x1e56ztr.x2lah0s.x1c4vz4f", // Notes panel
   "div.xcdnw81.xurb0ha.xwib8y2.x1sxyh0.x1y1aw1k.xl56j7k.x78zum5.x1ypdohk.x17r0tee.x1sy0etr.xd10rxx.x1ejq31n.xjbqb8w.x6s0dn4.x1a2a7pz.xggy1nq.x1hl2dhg.x16tdsg8.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.xe8uvvx.x9f619.xm0m39n.x1qhh985.xcfux6l.x972fbf.x1i10hfl:nth-of-type(3)", // Heart icon
@@ -22,26 +22,7 @@ const ELEMENTS_TO_REMOVE = JSON.stringify([
   ".xs5motx.x1rlzn12.xysbk4d.x1xdureb.xc3tme8", // Account insights
   // Home
   ".x1nhvcw1.x1oa3qoh.x6s0dn4.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619 > .x1nhvcw1.x1oa3qoh.x1qjc9v5.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619", // Feed (just in case redirects fail)
-]);
-
-const INJECTED_JS = `
-  removeElements = () => {
-    // List of elements to hide by class or CSS selector
-    const elementsToRemove = ${ELEMENTS_TO_REMOVE};
-
-    // Hide each element by class or CSS selector
-    elementsToRemove.forEach(selector => {
-      const element = document.querySelector(selector);
-      if (element) {
-        element.style.display = "none"; // Hide the element
-      }
-    });
-  };
-
-  setInterval(() => {
-    removeElements();
-  }, 100);
-`;
+];
 
 const firebaseConfig = {
   apiKey: API_KEY,
@@ -61,13 +42,50 @@ const App = () => {
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
   ];
-  const [currentUrl, setCurrentUrl] = useState(sourceUrl);
+  const configUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/instagram/";
+
+  const [currentUrl, setCurrentUrl] = useState(null);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
+
+  const injectedJavaScript = `
+    removeElements = () => {
+      // List of elements to hide by class or CSS selector
+      const elementsToRemove = ${filtersConfig};
+      // Hide each element by class or CSS selector
+      elementsToRemove.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) {
+          element.style.display = "none"; // Hide the element
+        }
+      });
+    };
+    setInterval(() => {
+      removeElements();
+    }, 100);
+  `;
+
+  const fetchFiltersConfig = () => {
+    fetch(`${configUrl}filters.json?cache_bust=true`)
+      .then(response => response.json())
+      .then(data => {
+        setFiltersConfig(JSON.stringify(data));
+      }).catch(error => {
+        console.error("Failed to fetch filters config:", error);
+      }
+    );
+  };
 
   const redirectToSourceUrl = (navState) => {
     if (
       (navState.url === baseUrl && currentUrl !== baseUrl) // Redirect from base Url, but avoid infinite loops
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
+      if (currentUrl === sourceUrl && navState.canGoBack){
+        // If we were already on the source URL, go back to the source URL
+        webViewRef.current.goBack();
+        return;
+      }
       webViewRef.current.stopLoading();
       webViewRef.current.injectJavaScript(`window.location.href = '${sourceUrl}';`);
     }
@@ -75,14 +93,12 @@ const App = () => {
     setCurrentUrl(navState.url);
   };
 
-  const openLinkInWebView = (syntheticEvent) => {
-    const { nativeEvent } = syntheticEvent;
-    const { targetUrl } = nativeEvent;
-    if (targetUrl.startsWith(baseUrl)) {
+  const openLinkInWebView = (nativeEvent) => {
+    if (nativeEvent.targetUrl.startsWith(baseUrl)) {
       // Prevent app links from opening in the device's default browser
       webViewRef.current.stopLoading();
       // Instead, open the link in the WebView
-      webViewRef.current.injectJavaScript(`window.location.href = '${targetUrl}';`);
+      webViewRef.current.injectJavaScript(`window.location.href = '${nativeEvent.targetUrl}';`);
     }
   };
 
@@ -122,22 +138,41 @@ const App = () => {
     initializeFirebase();
   }, []);
 
+  const handleBackPress = () => {
+    if (canGoBack) {
+      webViewRef.current.goBack();
+    } else {
+      BackHandler.exitApp();
+    }
+    return true;
+  };
+
+  useEffect(() => {
+    fetchFiltersConfig();
+  }, []); // Run once on component mount
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => backHandler.remove(); // Cleanup
+  }, [canGoBack]); // Re-run the effect when canGoBack changes
+
   return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <WebView
             ref={webViewRef}
             source={{ uri: sourceUrl }}
-            injectedJavaScript={INJECTED_JS}
+            injectedJavaScript={injectedJavaScript}
             javaScriptEnabled={true}
             javaScriptCanOpenWindowsAutomatically={true}
             onMessage={() => {}}
             domStorageEnabled
             startInLoadingState
             renderLoading={() => <ActivityIndicator size="large" color="#0000ff" />}
-            onNavigationStateChange={redirectToSourceUrl}
-            onOpenWindow={openLinkInWebView}
+            onNavigationStateChange={(navState) => {redirectToSourceUrl(navState)}}
+            onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
+            onLoadProgress={(syntheticEvent) => {setCanGoBack(syntheticEvent.nativeEvent.canGoBack)}}
         />
-      </View>
+      </SafeAreaView>
   );
 };
 
