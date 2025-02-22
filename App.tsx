@@ -17,12 +17,20 @@ const DEFAULT_FILTERS = [
   "._ab1b._ab18 > .x1qrby5j.x7ja8zs.x1t2pt76.x1lytzrv.xedcshv.xarpa2k.x3igimt.x12ejxvf.xaigb6o.x1beo9mf.xv2umb2.x1jfb8zj.x1h9r5lt.x1h91t0o.x4k7w5x", // Threads icon
   ".x1nhvcw1.x1oa3qoh.x6s0dn4.xqjyukv.x1q0g3np.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.x3pnbk8.xjbqb8w.x9f619", // Threads username
   ".xs5motx.x1rlzn12.xysbk4d.x1xdureb.xc3tme8", // Account insights
-  // Home
-  ".x1nhvcw1.x1oa3qoh.x6s0dn4.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619 > .x1nhvcw1.x1oa3qoh.x1qjc9v5.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619", // Feed (just in case redirects fail)
+  // Feed
+  ".x1nhvcw1.x1oa3qoh.x6s0dn4.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619 > .x1nhvcw1.x1oa3qoh.x1qjc9v5.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619", // Feed
+  ".xa3vuyk.x1tukju.x4afe7t.xa8t5ci.x1d5wrs8.xfo81ep.x14atkfc.xuxw1ft.x87ps6o.x5ftkge.xlyipyv.x2b8uid.x10wlt62.x6ikm8r.x12uuly6.xwhw2v2.x1lliihq.x1ypdohk.x5n08af.x1yx36r3.xm0m39n.x1qhh985.xcfux6l.x972fbf.x4y8mfe.x1i7howy.x3jqge.x1ke7ulo.x7r02ix.xjyslct.x1lugfcp", // New posts popup
+  ".x67bb7w.x13vifvy.x10l6tqk.xm80bdy.xu96u03", // Notifications popup
+  ".x1qiirwl.x10l6tqk.x8fncvn", // Notifications red dot
+  ".xivu535 > div > .x1nhvcw1.x1oa3qoh.x1qjc9v5.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.x1y1aw1k.xwib8y2.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619", // Notifications suggestions
+  // Explore
+  ".x1ugxg0y.x7flfwp.x1e49onv.x16mfq2j.x103t36t.xmjrnx3.xhae0no.x19b80pe.xh8yej3.x1ykew4q.x1gryazu.x4n8cb0.xkrivgy.xdj266r.x1iyjqo2.xdt5ytf.x78zum5", // Explore
+  // Reels
+  ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
 ];
 
 const App = () => {
-  const webViewRef = useRef(null);
+  const webViewRef = useRef<WebView>(null);
   const baseUrl = `https://www.instagram.com/`;
   const sourceUrl = `${baseUrl}direct/inbox/`;
   const redirectFromUrls = [
@@ -31,9 +39,9 @@ const App = () => {
   ];
   const configUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/instagram/";
 
-  const [currentUrl, setCurrentUrl] = useState(null);
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
+  let [currentUrl, setCurrentUrl] = useState("");
+  let [canGoBack, setCanGoBack] = useState(false);
+  let [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
 
   const injectedJavaScript = `
     removeElements = () => {
@@ -63,24 +71,32 @@ const App = () => {
     );
   };
 
-  const redirectToSourceUrl = (navState) => {
+  const trackNavState = (nativeEvent: any) => {
+    setCurrentUrl(nativeEvent.targetUrl);
+    setCanGoBack(nativeEvent.canGoBack);
+  }
+
+  const redirectToSafety = (navState: any) => {
+    if (!webViewRef.current) return; 
     if (
       (navState.url === baseUrl && currentUrl !== baseUrl) // Redirect from base Url, but avoid infinite loops
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
-      if (currentUrl === sourceUrl && navState.canGoBack){
-        // If we were already on the source URL, go back to the source URL
+      if (navState.canGoBack) {
         webViewRef.current.goBack();
+        try { // Try to go back twice
+          webViewRef.current.goBack();
+        } catch (error) {}
         return;
       }
+      // If can't go back, redirect to the source URL
       webViewRef.current.stopLoading();
       webViewRef.current.injectJavaScript(`window.location.href = '${sourceUrl}';`);
     }
-    // Keep track of the current URL (for avoiding infinite loops)
-    setCurrentUrl(navState.url);
   };
 
-  const openLinkInWebView = (nativeEvent) => {
+  const openLinkInWebView = (nativeEvent: any) => {
+    if (!webViewRef.current) return; 
     if (nativeEvent.targetUrl.startsWith(baseUrl)) {
       // Prevent app links from opening in the device's default browser
       webViewRef.current.stopLoading();
@@ -90,6 +106,7 @@ const App = () => {
   };
 
   const handleBackPress = () => {
+    if (!webViewRef.current) return false;
     if (canGoBack) {
       webViewRef.current.goBack();
     } else {
@@ -119,9 +136,9 @@ const App = () => {
             domStorageEnabled
             startInLoadingState
             renderLoading={() => <ActivityIndicator size="large" color="#0000ff" />}
-            onNavigationStateChange={(navState) => {redirectToSourceUrl(navState)}}
+            onLoadProgress={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
+            onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
             onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
-            onLoadProgress={(syntheticEvent) => {setCanGoBack(syntheticEvent.nativeEvent.canGoBack)}}
         />
       </SafeAreaView>
   );
