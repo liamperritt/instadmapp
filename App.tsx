@@ -72,24 +72,22 @@ const App = () => {
   };
 
   const trackNavState = (nativeEvent: any) => {
-    setCurrentUrl(nativeEvent.targetUrl);
+    setCurrentUrl(nativeEvent.url);
     setCanGoBack(nativeEvent.canGoBack);
   }
 
   const redirectToSafety = (navState: any) => {
-    if (!webViewRef.current) return; 
+    if (!webViewRef.current) return;
     if (
       (navState.url === baseUrl && currentUrl !== baseUrl) // Redirect from base Url, but avoid infinite loops
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
-      if (navState.canGoBack) {
+      // If we were previously on the source URL,
+      // go back to the source URL before redirecting to avoid page load error message
+      if (navState.canGoBack && currentUrl === sourceUrl) {
         webViewRef.current.goBack();
-        try { // Try to go back twice
-          webViewRef.current.goBack();
-        } catch (error) {}
-        return;
       }
-      // If can't go back, redirect to the source URL
+      // Stop loading the unsafe page and redirect to the source URL
       webViewRef.current.stopLoading();
       webViewRef.current.injectJavaScript(`window.location.href = '${sourceUrl}';`);
     }
@@ -136,7 +134,7 @@ const App = () => {
             domStorageEnabled
             startInLoadingState
             renderLoading={() => <ActivityIndicator size="large" color="#0000ff" />}
-            onLoadProgress={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
+            onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
             onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
             onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
         />
