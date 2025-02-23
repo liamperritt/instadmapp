@@ -87,8 +87,7 @@ const App = () => {
       if (navState.canGoBack && currentUrl === sourceUrl) {
         webViewRef.current.goBack();
       }
-      // Stop loading the unsafe page and redirect to the source URL
-      webViewRef.current.stopLoading();
+      // Redirect to the source URL
       webViewRef.current.injectJavaScript(`window.location.href = '${sourceUrl}';`);
     }
   };
@@ -96,8 +95,7 @@ const App = () => {
   const openLinkInWebView = (nativeEvent: any) => {
     if (!webViewRef.current) return; 
     if (nativeEvent.targetUrl.startsWith(baseUrl)) {
-      // Prevent app links from opening in the device's default browser
-      webViewRef.current.stopLoading();
+      // Prevent app links from opening in the device's default browser.
       // Instead, open the link in the WebView
       webViewRef.current.injectJavaScript(`window.location.href = '${nativeEvent.targetUrl}';`);
     }
