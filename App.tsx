@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { SafeAreaView, ActivityIndicator, StyleSheet, BackHandler } from "react-native";
+import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text } from "react-native";
 import WebView from "react-native-webview";
 
 const DEFAULT_FILTERS = [
@@ -39,9 +39,10 @@ const App = () => {
   ];
   const configUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/instagram/";
 
-  let [currentUrl, setCurrentUrl] = useState("");
-  let [canGoBack, setCanGoBack] = useState(false);
-  let [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
+  const [currentUrl, setCurrentUrl] = useState("");
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
+  const [hasLoadError, setHasLoadError] = useState(false);
 
   const injectedJavaScript = `
     removeElements = () => {
@@ -111,6 +112,21 @@ const App = () => {
     return true;
   };
 
+  const handleLoadError = () => {
+    setHasLoadError(true); // Set error state
+    setTimeout(() => {
+      if (webViewRef.current) {
+        webViewRef.current.reload();
+      } else {
+        console.error("Failed to reload WebView");
+      }
+    }, 1000); // Retry after 1 second
+  };
+
+  const handleLoadSuccess = () => {
+    setHasLoadError(false);
+  };
+
   useEffect(() => {
     fetchFiltersConfig();
   }, []); // Run once on component mount
@@ -120,22 +136,44 @@ const App = () => {
     return () => backHandler.remove(); // Cleanup
   }, [canGoBack]); // Re-run the effect when canGoBack changes
 
+  // useEffect(() => {
+  //   const handleAppStateChange = (nextAppState: string) => {
+  //     if (!webViewRef.current) return false;
+  //     if (nextAppState === "active") {
+  //       webViewRef.current.reload();
+  //     }
+  //   };
+  //   const appStateListener = AppState.addEventListener("change", handleAppStateChange);
+  //   return () => appStateListener.remove(); // Cleanup
+  // }
+  // , []);
+
   return (
       <SafeAreaView style={styles.container}>
-        <WebView
+        <WebView style={styles.container}
             ref={webViewRef}
             source={{ uri: sourceUrl }}
             injectedJavaScript={injectedJavaScript}
             javaScriptEnabled={true}
             javaScriptCanOpenWindowsAutomatically={true}
             onMessage={() => {}}
-            domStorageEnabled
-            startInLoadingState
-            renderLoading={() => <ActivityIndicator size="large" color="#0000ff" />}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            renderLoading={() => <ActivityIndicator size="large" color="white" />}
+            onError={() => {handleLoadError()}}
+            onLoad={() => {handleLoadSuccess()}}
             onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
             onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
             onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
+            allowsBackForwardNavigationGestures={true}
         />
+        {hasLoadError && (
+          <View style={styles.errorOverlay}>
+            <Text style={styles.errorTitle}>Unable to load page</Text>
+            <Text style={styles.errorSubtitle}>Please check your internet connection.</Text>
+            <ActivityIndicator size="large" color="white"/>
+          </View>
+        )}
       </SafeAreaView>
   );
 };
@@ -143,6 +181,28 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'black',
+  },
+  errorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'black',
+  },
+  errorTitle: {
+    color: 'white',
+    fontSize: 20,
+    textAlign: 'center',
+    marginHorizontal: 20,
+    marginBottom: 5,
+  },
+  errorSubtitle: {
+    color: 'gray',
+    fontSize: 15,
+    textAlign: 'center',
+    marginHorizontal: 20,
+    marginBottom: 10,
   },
 });
 
