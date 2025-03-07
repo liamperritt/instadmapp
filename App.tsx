@@ -18,11 +18,10 @@ const DEFAULT_FILTERS = [
   ".x1nhvcw1.x1oa3qoh.x6s0dn4.xqjyukv.x1q0g3np.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.x3pnbk8.xjbqb8w.x9f619", // Threads username
   ".xs5motx.x1rlzn12.xysbk4d.x1xdureb.xc3tme8", // Account insights
   // Feed
-  ".x1nhvcw1.x1oa3qoh.x6s0dn4.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619 > .x1nhvcw1.x1oa3qoh.x1qjc9v5.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619", // Feed
+  ".xh8yej3.xl56j7k.x1q0g3np.x78zum5.x1qjc9v5", // Feed & Stories
   ".xa3vuyk.x1tukju.x4afe7t.xa8t5ci.x1d5wrs8.xfo81ep.x14atkfc.xuxw1ft.x87ps6o.x5ftkge.xlyipyv.x2b8uid.x10wlt62.x6ikm8r.x12uuly6.xwhw2v2.x1lliihq.x1ypdohk.x5n08af.x1yx36r3.xm0m39n.x1qhh985.xcfux6l.x972fbf.x4y8mfe.x1i7howy.x3jqge.x1ke7ulo.x7r02ix.xjyslct.x1lugfcp", // New posts popup
   ".x67bb7w.x13vifvy.x10l6tqk.xm80bdy.xu96u03", // Notifications popup
-  ".x1qiirwl.x10l6tqk.x8fncvn", // Notifications red dot
-  ".xivu535 > div > .x1nhvcw1.x1oa3qoh.x1qjc9v5.xqjyukv.xdt5ytf.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.x1y1aw1k.xwib8y2.xo71vjh.x5pf9jr.x13lgxp2.x168nmei.x78zum5.xjbqb8w.x9f619", // Notifications suggestions
+  ".x1r695p9.x19f6ikt.x78zum5", // Notifications icon
   // Explore
   ".x1ugxg0y.x7flfwp.x1e49onv.x16mfq2j.x103t36t.xmjrnx3.xhae0no.x19b80pe.xh8yej3.x1ykew4q.x1gryazu.x4n8cb0.xkrivgy.xdj266r.x1iyjqo2.xdt5ytf.x78zum5", // Explore
   // Reels
@@ -36,11 +35,13 @@ const App = () => {
   const redirectFromUrls = [
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
+    `${baseUrl}notifications/`,
   ];
   const configUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/instagram/";
 
   const [currentUrl, setCurrentUrl] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
+  const [wentBack, setWentBack] = useState(false);
   const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
   const [hasLoadError, setHasLoadError] = useState(false);
 
@@ -75,12 +76,15 @@ const App = () => {
   const trackNavState = (nativeEvent: any) => {
     setCurrentUrl(nativeEvent.url);
     setCanGoBack(nativeEvent.canGoBack);
+    if (wentBack) {
+      setWentBack(false);
+    }
   }
 
   const redirectToSafety = (navState: any) => {
     if (!webViewRef.current) return;
     if (
-      (navState.url === baseUrl && currentUrl !== baseUrl) // Redirect from base Url, but avoid infinite loops
+      (navState.url === baseUrl && currentUrl !== baseUrl && currentUrl !== sourceUrl && !wentBack) // Redirect from base Url, but avoid infinite loops
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
       // If we were previously on the source URL,
@@ -106,6 +110,7 @@ const App = () => {
     if (!webViewRef.current) return false;
     if (canGoBack) {
       webViewRef.current.goBack();
+      setWentBack(true);
     } else {
       BackHandler.exitApp();
     }
@@ -127,6 +132,15 @@ const App = () => {
     setHasLoadError(false);
   };
 
+  const handleProcessTermination = () => {
+    if (webViewRef.current) {
+      console.log("Reloading on process termination...")
+      webViewRef.current.reload();
+    } else {
+      console.error("Failed to reload")
+    }
+  };
+
   useEffect(() => {
     fetchFiltersConfig();
   }, []); // Run once on component mount
@@ -136,45 +150,36 @@ const App = () => {
     return () => backHandler.remove(); // Cleanup
   }, [canGoBack]); // Re-run the effect when canGoBack changes
 
-  // useEffect(() => {
-  //   const handleAppStateChange = (nextAppState: string) => {
-  //     if (!webViewRef.current) return false;
-  //     if (nextAppState === "active") {
-  //       webViewRef.current.reload();
-  //     }
-  //   };
-  //   const appStateListener = AppState.addEventListener("change", handleAppStateChange);
-  //   return () => appStateListener.remove(); // Cleanup
-  // }
-  // , []);
-
   return (
-      <SafeAreaView style={styles.container}>
-        <WebView style={styles.container}
-            ref={webViewRef}
-            source={{ uri: sourceUrl }}
-            injectedJavaScript={injectedJavaScript}
-            javaScriptEnabled={true}
-            javaScriptCanOpenWindowsAutomatically={true}
-            onMessage={() => {}}
-            domStorageEnabled={true}
-            startInLoadingState={true}
-            renderLoading={() => <ActivityIndicator size="large" color="white" />}
-            onError={() => {handleLoadError()}}
-            onLoad={() => {handleLoadSuccess()}}
-            onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
-            onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
-            onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
-            allowsBackForwardNavigationGestures={true}
-        />
-        {hasLoadError && (
-          <View style={styles.errorOverlay}>
-            <Text style={styles.errorTitle}>Unable to load page</Text>
-            <Text style={styles.errorSubtitle}>Please check your internet connection.</Text>
-            <ActivityIndicator size="large" color="white"/>
-          </View>
-        )}
-      </SafeAreaView>
+    <SafeAreaView style={styles.container}>
+      <WebView style={styles.container}
+        ref={webViewRef}
+        source={{ uri: sourceUrl }}
+        injectedJavaScript={injectedJavaScript}
+        javaScriptEnabled={true}
+        javaScriptCanOpenWindowsAutomatically={true}
+        onMessage={() => {}}
+        domStorageEnabled={true}
+        startInLoadingState={true}
+        renderLoading={() => <View />}
+        onError={() => {handleLoadError()}}
+        onLoad={() => {handleLoadSuccess()}}
+        onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
+        onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
+        onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
+        onContentProcessDidTerminate={handleProcessTermination}
+        onRenderProcessGone={handleProcessTermination}
+        allowsBackForwardNavigationGestures={true}
+        pullToRefreshEnabled={true}
+      />
+      {hasLoadError && (
+        <View style={styles.errorOverlay}>
+          <Text style={styles.errorTitle}>Unable to load page</Text>
+          <Text style={styles.errorSubtitle}>Please check your internet connection.</Text>
+          <ActivityIndicator size="large" color="white"/>
+        </View>
+      )}
+    </SafeAreaView>
   );
 };
 
