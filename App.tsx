@@ -68,7 +68,7 @@ const App = () => {
     fetch(`${configUrl}filters.json?cache_bust=true`)
       .then(response => response.json())
       .then(data => {
-        // setFiltersConfig(JSON.stringify(data));
+        setFiltersConfig(JSON.stringify(data));
       }).catch(error => {
         console.error("Failed to fetch filters config:", error);
       }
