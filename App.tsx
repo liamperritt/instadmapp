@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text } from "react-native";
+import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Button } from "react-native";
 import WebView from "react-native-webview";
+import notifee, { AndroidBadgeIconType } from '@notifee/react-native';
+import ShortcutBadge from 'react-native-app-badge';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -29,6 +31,7 @@ const DEFAULT_FILTERS = [
   // Reels
   ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
 ];
+const DM_COUNTER_ELEMENT = ".x1mpkggp.x1t2a60a.xg8j3zb.xyqdw3p.xo1l8bm.x1ncwhqj.xwmz7sl.x9f619.x1vvkbs.x16tdsg8.x1hl2dhg.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.html-span";
 
 const App = () => {
   const webViewRef = useRef<WebView>(null);
@@ -46,6 +49,7 @@ const App = () => {
   const [wentBack, setWentBack] = useState(false);
   const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
   const [hasLoadError, setHasLoadError] = useState(false);
+  const [currentBadgeCount, setCurrentBadgeCount] = useState(0);
 
   const injectedJavaScript = `
     removeElements = () => {
@@ -59,8 +63,27 @@ const App = () => {
         }
       });
     };
+
+    fetchDmCounter = () => {
+      // Only run if we're on the baseUrl page
+      if (!window.location.href === '${baseUrl}') {
+        return;
+      }
+      // Check the unread DM counter
+      const unread = document.querySelector('${DM_COUNTER_ELEMENT}');
+      if (!unread) {
+        return;
+      }
+      const count = parseInt(unread.innerText);
+      if (count > 0 && count !== window.currentBadgeCount) {
+        window.ReactNativeWebView.postMessage(count.toString());
+        window.currentBadgeCount = count;
+      }
+    };
+
     setInterval(() => {
       removeElements();
+      fetchDmCounter();
     }, 100);
   `;
 
@@ -83,6 +106,11 @@ const App = () => {
     }
   }
 
+  const redirectToUrl = (url: string) => {
+    if (!webViewRef.current) return;
+    webViewRef.current.injectJavaScript(`window.location.href = '${url}';`);
+  }
+
   const redirectToSafety = (navState: any) => {
     if (!webViewRef.current) return;
     if (
@@ -90,7 +118,7 @@ const App = () => {
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
       // Redirect to the source URL
-      webViewRef.current.injectJavaScript(`window.location.href = '${sourceUrl}';`);
+      redirectToUrl(sourceUrl);
     }
   };
 
@@ -102,6 +130,44 @@ const App = () => {
       webViewRef.current.injectJavaScript(`window.location.href = '${nativeEvent.targetUrl}';`);
     }
   };
+
+  const displayNotification = async (count: number) => {
+    const badgeCount = currentBadgeCount + count;
+    setCurrentBadgeCount(badgeCount);
+
+    // Request permissions (required for iOS)
+    await notifee.requestPermission()
+
+    // Create a channel (required for Android)
+    const channelId = await notifee.createChannel({
+      id: 'instagram',
+      name: 'Instagram',
+      badge: true,
+    });
+
+    // Increment badge count
+    await notifee.setBadgeCount(badgeCount); // iOS
+    await ShortcutBadge.setCount(badgeCount); // Android
+
+    // Display a notification
+    try {
+      await notifee.displayNotification({
+        id: 'instagram-dms',
+        body: `You have ${badgeCount} unread Instagram messages`,
+        android: {
+          channelId,
+          smallIcon: 'insta_dms_icon',
+          badgeIconType: AndroidBadgeIconType.SMALL,
+          // pressAction is needed if you want the notification to open the app when pressed
+          pressAction: {
+            id: 'default'
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Failed to display notification:', error);
+    }
+  }
 
   const handleBackPress = () => {
     if (!webViewRef.current) return false;
@@ -138,6 +204,14 @@ const App = () => {
     }
   };
 
+  const handleMessage = (event: any) => {
+    const count = parseInt(event.nativeEvent.data);
+    if (currentUrl === baseUrl && count > 0 && count !== currentBadgeCount) {
+      displayNotification(count);
+      setCurrentBadgeCount(count);
+    }
+  };
+
   useEffect(() => {
     fetchFiltersConfig();
   }, []); // Run once on component mount
@@ -147,15 +221,24 @@ const App = () => {
     return () => backHandler.remove(); // Cleanup
   }, [canGoBack]); // Re-run the effect when canGoBack changes
 
+  // Set background event handler
+  notifee.onBackgroundEvent(async ({ type, detail }) => {
+    console.log('Background event:', type, detail);
+    redirectToUrl(sourceUrl);
+  });
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* <View>
+        <Button title="Display Notification" onPress={() => displayNotification(1)} />
+      </View> */}
       <WebView style={styles.container}
         ref={webViewRef}
         source={{ uri: sourceUrl }}
         injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
-        onMessage={() => {}}
+        onMessage={handleMessage}
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={() => <View />}
