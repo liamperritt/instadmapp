@@ -3,7 +3,6 @@ import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, B
 import WebView from "react-native-webview";
 import BackgroundFetch from "react-native-background-fetch";
 import PushNotification from 'react-native-push-notification';
-import CookieManager from '@react-native-cookies/cookies';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DEFAULT_FILTERS = [
@@ -35,13 +34,6 @@ const DEFAULT_FILTERS = [
 ];
 // const DM_COUNTER_ELEMENT = ".x1mpkggp.x1t2a60a.xg8j3zb.xyqdw3p.xo1l8bm.x1ncwhqj.xwmz7sl.x9f619.x1vvkbs.x16tdsg8.x1hl2dhg.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.html-span";
 const DM_COUNTER_ELEMENT = ".x1r695p9.x19f6ikt.x78zum5";
-const REQUIRED_COOKIES = [
-  "sessionid",
-  "csrftoken",
-  "mid",
-  "ig_did",
-  "ds_user_id",
-];
 
 // Push notifications setup
 PushNotification.configure({
@@ -93,9 +85,10 @@ const App = () => {
   `;
 
   const fetchFiltersConfig = async () => {
-    const response = await fetch(`${configUrl}filters.json?cache_bust=true`);
-    const data = await response.json();
+    console.log("Fetching filters config...");
     try {
+      const response = await fetch(`${configUrl}filters.json?cache_bust=true`);
+      const data = await response.json();
       setFiltersConfig(JSON.stringify(data));
       console.log("Filters config fetched:", data);
     } catch (error) {
@@ -109,9 +102,19 @@ const App = () => {
     if (wentBack) {
       setWentBack(false);
     }
+    if (!webViewRef.current) return;
     if (nativeEvent.url === sourceUrl) {
-      saveCookies();
+      // Get cookies and user agent from the WebView
+      webViewRef.current.injectJavaScript(
+        `(function() {
+          const cookies = document.cookie;
+          const userAgent = navigator.userAgent;
+          window.ReactNativeWebView.postMessage(JSON.stringify({ cookies, userAgent }));
+        })();
+        true;`
+      );
     }
+    // fetchUnreadMessages();
   };
 
   const redirectToUrl = (url: string) => {
@@ -139,71 +142,84 @@ const App = () => {
     }
   };
 
-  const saveCookies = async () => {
+  const saveHeaders = async (cookies: string, userAgent: string) => {
     if (!webViewRef.current) return;
-    const cookies = await CookieManager.get(baseUrl);
-    // Log all cookies
-    console.log("Cookies:", cookies);
 
-    for (const cookie_name of REQUIRED_COOKIES) {
-      if (!cookies[cookie_name]) {
-        console.warn(`Cookie ${cookie_name} not found`);
-        return;
-      }
-    }
-
-    console.log("Saving cookies to storage");
+    console.log("Saving headers to storage");
     try {
       await AsyncStorage.setItem('cookies', JSON.stringify(cookies));
+      await AsyncStorage.setItem('userAgent', JSON.stringify(userAgent));
     } catch (error) {
-      console.error("Failed to save cookies:", error);
+      console.error("Failed to save headers:", error);
     }
   };
 
-  const loadCookies = async () => {
-    console.log("Loading cookies from storage");
+  const handleMessage = (event: any) => {
+    const { cookies, userAgent } = JSON.parse(event.nativeEvent.data);
+    console.log("🍪 Cookies:", cookies);
+    console.log("📱 User-Agent:", userAgent);
+    saveHeaders(cookies, userAgent);
+  };
+
+  const loadHeaders = async () => {
+    console.log("Loading headers from storage");
     try {
       const cookies = await AsyncStorage.getItem('cookies');
       console.log("Cookies loaded:", cookies);
-      return cookies;
+      const userAgent = await AsyncStorage.getItem('userAgent');
+      console.log("User agent loaded:", userAgent);
+      console.log("Headers loaded:", {cookies, userAgent});
+      if (!cookies || !userAgent) {
+        console.error("No cookies or user agent found");
+        throw new Error("No cookies or user agent found");
+      }
+      return { cookies, userAgent };
     } catch (error) {
       console.error("Failed to load cookies:", error);
     }
+    return {};
   };
 
-  const getUnreadMessages = async () => {
-    const cookies = await loadCookies();
+  const fetchUnreadMessages = async () => {
+    const {cookies, userAgent} = await loadHeaders();
     if (!cookies) {
       console.error("No cookies found");
       return;
     }
-    const cookiesObj = JSON.parse(cookies);
-    const cookieHeader = Object.entries(cookiesObj)
-      .map(([name, value]) => `${name}=${value}`)
-      .join('; ');
-    console.log("Cookie header:", cookieHeader);
+    if (!userAgent) {
+      console.error("No user agent found");
+      return;
+    }
+
+    const match = cookies.match(/csrftoken=([^;]+)/);
+    if (!match) {
+      console.error("No csrftoken found in cookies");
+      return;
+    }
+    const csrftoken = match[1];
+    console.log("csrftoken:", csrftoken);
 
     console.log("Fetching unread messages...");
     try {
-      // const response = await fetch(`https://i.instagram.com/api/v1/direct_v2/inbox/`, {
-      //   method: 'GET',
-      //   headers: {
-      //     'accept': '*/*',
-      //     'accept-language': 'en-US,en;q=0.9',
-      //     'content-type': 'application/x-www-form-urlencoded',
-      //     'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36',
-      //     'origin': baseUrl,
-      //     'referer': sourceUrl,
-      //     'sec-fetch-dest': 'empty',
-      //     'sec-fetch-mode': 'cors',
-      //     'sec-fetch-site': 'same-origin',
-      //     'cookie': cookieHeader,
-      //   },
-      //   // Add the correct information
-        
-      // });
+      const response = await fetch(`https://i.instagram.com/api/v1/direct_v2/inbox/?thread_message_limit=10&persistentBadging=true&limit=20&visual_message_return_type=unseen`, {
+        method: 'GET',
+        headers: {
+          "x-ig-app-id": "936619743392459",
+          "User-Agent": userAgent,
+          "Accept": "*/*",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Origin": "https://i.instagram.com",
+          "Referer": sourceUrl,
+          "Priority": "u=1, i",
+          "X-CSRFToken": csrftoken,
+          'Cookie': cookies,
+        },
+      });
 
-      // console.log("Response:", response);
+      console.log("Response:", response);
+      const data = await response.json();
+      console.log("Data:", data);
     } catch (error) {
       console.error("Failed to fetch unread messages:", error);
     }
@@ -240,11 +256,12 @@ const App = () => {
       // Android-specific options
       stopOnTerminate: false,
       startOnBoot: true,
+      requiredNetworkType: BackgroundFetch.NETWORK_TYPE_ANY,
     }, async (taskId: string) => {
       console.log('[BackgroundFetch] taskId', taskId);
       // Perform task.
+      // await fetchUnreadMessages();
       await displayLocalNotification();
-      await loadCookies();
       // Finish.
       BackgroundFetch.finish(taskId);
       console.log('[BackgroundFetch] Task finished:', taskId);
@@ -321,7 +338,7 @@ const App = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View>
-        <Button title="Get Unread Messages" onPress={() => getUnreadMessages()} />
+        <Button title="Fetch Unread Messages" onPress={() => fetchUnreadMessages()} />
       </View>
       <WebView style={styles.container}
         ref={webViewRef}
@@ -329,7 +346,7 @@ const App = () => {
         injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
-        onMessage={() => {}}
+        onMessage={handleMessage}
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={() => <View />}
