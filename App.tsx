@@ -3,7 +3,8 @@ import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, B
 import WebView from "react-native-webview";
 import BackgroundFetch from "react-native-background-fetch";
 import PushNotification from 'react-native-push-notification';
-// import CookieManager from '@react-native-cookies/cookies';
+import CookieManager from '@react-native-cookies/cookies';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -34,6 +35,13 @@ const DEFAULT_FILTERS = [
 ];
 // const DM_COUNTER_ELEMENT = ".x1mpkggp.x1t2a60a.xg8j3zb.xyqdw3p.xo1l8bm.x1ncwhqj.xwmz7sl.x9f619.x1vvkbs.x16tdsg8.x1hl2dhg.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.html-span";
 const DM_COUNTER_ELEMENT = ".x1r695p9.x19f6ikt.x78zum5";
+const REQUIRED_COOKIES = [
+  "sessionid",
+  "csrftoken",
+  "mid",
+  "ig_did",
+  "ds_user_id",
+];
 
 // Push notifications setup
 PushNotification.configure({
@@ -65,7 +73,6 @@ const App = () => {
   const [wentBack, setWentBack] = useState(false);
   const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
   const [hasLoadError, setHasLoadError] = useState(false);
-  // const [cookies, setCookies] = useState({});
 
   const injectedJavaScript = `
     removeElements = () => {
@@ -96,53 +103,21 @@ const App = () => {
     }
   };
 
-  // const fetchBadgeCount = async () => {
-  //   console.log("Cookies:", cookies);
-  //   const cookieHeader = Object.entries(cookies)
-  //     .map(([name, value]) => `${name}=${value}`)
-  //     .join('; ');
-
-  //   const response = await fetch(`${baseUrl}`, {
-  //     headers: {
-  //       'Cookie': cookieHeader,
-  //     }
-  //   });
-  //   const html = await response.text();
-  //   console.log("HTML:", html);
-  //   const parser = new DOMParser.DOMParser();
-  //   try {
-  //     const doc = parser.parseFromString(html, 'text/html');
-  //     console.log("Doc:", doc);
-  //     const unread = doc.querySelect(DM_COUNTER_ELEMENT);
-  //     console.log("Unread:", unread);
-  //   } catch (error) {
-  //     console.error("Failed to parse HTML:", error);
-  //   }
-  //   if (unread) {
-  //     const count = parseInt(unread.innerText);
-  //     if (count > 0 && count !== currentBadgeCount) {
-  //       displayNotification(count);
-  //       setCurrentBadgeCount(count);
-  //     }
-  //   }
-  // };
-
   const trackNavState = (nativeEvent: any) => {
     setCurrentUrl(nativeEvent.url);
     setCanGoBack(nativeEvent.canGoBack);
     if (wentBack) {
       setWentBack(false);
     }
-    // if (webViewRef.current) {
-    //   setCookies(CookieManager.get(baseUrl));
-    // }
-    //fetchBadgeCount();
-  }
+    if (nativeEvent.url === sourceUrl) {
+      saveCookies();
+    }
+  };
 
   const redirectToUrl = (url: string) => {
     if (!webViewRef.current) return;
     webViewRef.current.injectJavaScript(`window.location.href = '${url}';`);
-  }
+  };
 
   const redirectToSafety = (navState: any) => {
     if (!webViewRef.current) return;
@@ -164,11 +139,82 @@ const App = () => {
     }
   };
 
+  const saveCookies = async () => {
+    if (!webViewRef.current) return;
+    const cookies = await CookieManager.get(baseUrl);
+    // Log all cookies
+    console.log("Cookies:", cookies);
+
+    for (const cookie_name of REQUIRED_COOKIES) {
+      if (!cookies[cookie_name]) {
+        console.warn(`Cookie ${cookie_name} not found`);
+        return;
+      }
+    }
+
+    console.log("Saving cookies to storage");
+    try {
+      await AsyncStorage.setItem('cookies', JSON.stringify(cookies));
+    } catch (error) {
+      console.error("Failed to save cookies:", error);
+    }
+  };
+
+  const loadCookies = async () => {
+    console.log("Loading cookies from storage");
+    try {
+      const cookies = await AsyncStorage.getItem('cookies');
+      console.log("Cookies loaded:", cookies);
+      return cookies;
+    } catch (error) {
+      console.error("Failed to load cookies:", error);
+    }
+  };
+
+  const getUnreadMessages = async () => {
+    const cookies = await loadCookies();
+    if (!cookies) {
+      console.error("No cookies found");
+      return;
+    }
+    const cookiesObj = JSON.parse(cookies);
+    const cookieHeader = Object.entries(cookiesObj)
+      .map(([name, value]) => `${name}=${value}`)
+      .join('; ');
+    console.log("Cookie header:", cookieHeader);
+
+    console.log("Fetching unread messages...");
+    try {
+      // const response = await fetch(`https://i.instagram.com/api/v1/direct_v2/inbox/`, {
+      //   method: 'GET',
+      //   headers: {
+      //     'accept': '*/*',
+      //     'accept-language': 'en-US,en;q=0.9',
+      //     'content-type': 'application/x-www-form-urlencoded',
+      //     'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36',
+      //     'origin': baseUrl,
+      //     'referer': sourceUrl,
+      //     'sec-fetch-dest': 'empty',
+      //     'sec-fetch-mode': 'cors',
+      //     'sec-fetch-site': 'same-origin',
+      //     'cookie': cookieHeader,
+      //   },
+      //   // Add the correct information
+        
+      // });
+
+      // console.log("Response:", response);
+    } catch (error) {
+      console.error("Failed to fetch unread messages:", error);
+    }
+  };
+
   const displayLocalNotification = async () => {
+    console.log("Displaying local notification...");
     const channelId = "instagram"
 
     // Create a channel (required for Android)
-    PushNotification.createChannel({
+    await PushNotification.createChannel({
       channelId: channelId, // (required)
       channelName: 'Instagram', // (required)
       channelDescription: 'Instagram direct message notifications', // (optional) default: undefined.
@@ -176,19 +222,55 @@ const App = () => {
     });
 
     // Display a local notification
-    try {
-      PushNotification.localNotification({
-        channelId: channelId,
-        message: 'You have unread Instagram messages',
-        smallIcon: 'insta_dms_icon',
-        // ignoreInForeground: true,
-        // onlyAlertOnce: true,
-        invokeApp: true,
-        number: 1,
-      });
-    } catch (error) {
-      console.error('Failed to display local notification:', error);
-    }
+    await PushNotification.localNotification({
+      channelId: channelId,
+      message: 'You have unread Instagram messages',
+      smallIcon: 'insta_dms_icon',
+      ignoreInForeground: true,
+      onlyAlertOnce: true,
+      invokeApp: true,
+      number: 1,
+    });
+  };
+
+  const initBackgroundFetch = async () => {
+    console.log('[BackgroundFetch] Initialising...');
+    const status: number = await BackgroundFetch.configure({
+      minimumFetchInterval: 15, // in minutes (15 is minimum allowed)
+      // Android-specific options
+      stopOnTerminate: false,
+      startOnBoot: true,
+    }, async (taskId: string) => {
+      console.log('[BackgroundFetch] taskId', taskId);
+      // Perform task.
+      await displayLocalNotification();
+      await loadCookies();
+      // Finish.
+      BackgroundFetch.finish(taskId);
+      console.log('[BackgroundFetch] Task finished:', taskId);
+    }, (taskId: string) => {
+      // Oh No!  Our task took too long to complete and the OS has signalled
+      // that this task must be finished immediately.
+      console.log('[Fetch] TIMEOUT taskId:', taskId);
+      BackgroundFetch.finish(taskId);
+      console.log('[BackgroundFetch] Task timeout finished:', taskId);
+    });
+    console.log('[BackgroundFetch] configure status:', status);
+
+    // Query the current BackgroundFetch status.
+    BackgroundFetch.status((status) => {
+      switch (status) {
+        case BackgroundFetch.STATUS_RESTRICTED:
+          console.log("BackgroundFetch restricted");
+          break;
+        case BackgroundFetch.STATUS_DENIED:
+          console.log("BackgroundFetch denied");
+          break;
+        case BackgroundFetch.STATUS_AVAILABLE:
+          console.log("BackgroundFetch is enabled");
+          break;
+      }
+    });
   };
 
   const handleBackPress = () => {
@@ -226,47 +308,6 @@ const App = () => {
     }
   };
 
-  const initBackgroundFetch = async () => {
-    console.log('[BackgroundFetch] Initialising...');
-    const status: number = await BackgroundFetch.configure({
-      minimumFetchInterval: 15, // in minutes (15 is minimum allowed)
-      // Android-specific options
-      stopOnTerminate: false,
-      startOnBoot: true,
-      // enableHeadless: true,
-    }, async (taskId: string) => {
-      console.log('[BackgroundFetch] taskId', taskId);
-      // Perform task.
-      await displayLocalNotification();
-      await fetchFiltersConfig();
-      // Finish.
-      BackgroundFetch.finish(taskId);
-      console.log('[BackgroundFetch] Task finished:', taskId);
-    }, (taskId: string) => {
-      // Oh No!  Our task took too long to complete and the OS has signalled
-      // that this task must be finished immediately.
-      console.log('[Fetch] TIMEOUT taskId:', taskId);
-      BackgroundFetch.finish(taskId);
-      console.log('[BackgroundFetch] Task timeout finished:', taskId);
-    });
-    console.log('[BackgroundFetch] configure status:', status);
-
-    // Query the current BackgroundFetch status.
-    BackgroundFetch.status((status) => {
-      switch (status) {
-        case BackgroundFetch.STATUS_RESTRICTED:
-          console.log("BackgroundFetch restricted");
-          break;
-        case BackgroundFetch.STATUS_DENIED:
-          console.log("BackgroundFetch denied");
-          break;
-        case BackgroundFetch.STATUS_AVAILABLE:
-          console.log("BackgroundFetch is enabled");
-          break;
-      }
-    });
-  }
-
   useEffect(() => {
     fetchFiltersConfig();
     initBackgroundFetch();
@@ -280,7 +321,7 @@ const App = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View>
-        <Button title="Display Notification" onPress={() => displayLocalNotification()} />
+        <Button title="Get Unread Messages" onPress={() => getUnreadMessages()} />
       </View>
       <WebView style={styles.container}
         ref={webViewRef}
