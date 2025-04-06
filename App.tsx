@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Button } from "react-native";
+import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Button, Platform } from "react-native";
 import WebView from "react-native-webview";
-import notifee, { AndroidBadgeIconType } from '@notifee/react-native';
+import notifee, { AndroidBadgeIconType, EventType } from '@notifee/react-native';
 import ShortcutBadge from 'react-native-app-badge';
+import BackgroundFetch from "react-native-background-fetch";
+// import CookieManager from '@react-native-cookies/cookies';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -31,7 +33,8 @@ const DEFAULT_FILTERS = [
   // Reels
   ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
 ];
-const DM_COUNTER_ELEMENT = ".x1mpkggp.x1t2a60a.xg8j3zb.xyqdw3p.xo1l8bm.x1ncwhqj.xwmz7sl.x9f619.x1vvkbs.x16tdsg8.x1hl2dhg.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.html-span";
+// const DM_COUNTER_ELEMENT = ".x1mpkggp.x1t2a60a.xg8j3zb.xyqdw3p.xo1l8bm.x1ncwhqj.xwmz7sl.x9f619.x1vvkbs.x16tdsg8.x1hl2dhg.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.html-span";
+const DM_COUNTER_ELEMENT = ".x1r695p9.x19f6ikt.x78zum5";
 
 const App = () => {
   const webViewRef = useRef<WebView>(null);
@@ -49,7 +52,10 @@ const App = () => {
   const [wentBack, setWentBack] = useState(false);
   const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
   const [hasLoadError, setHasLoadError] = useState(false);
-  const [currentBadgeCount, setCurrentBadgeCount] = useState(0);
+  // const [currentBadgeCount, setCurrentBadgeCount] = useState(0);
+  const [cookies, setCookies] = useState({});
+  const [bfEnabled, setBfEnabled] = React.useState(true);
+  const [bfStatus, setBfStatus] = React.useState(-1);
 
   const injectedJavaScript = `
     removeElements = () => {
@@ -83,20 +89,51 @@ const App = () => {
 
     setInterval(() => {
       removeElements();
-      fetchDmCounter();
+      // fetchDmCounter();
     }, 100);
   `;
 
-  const fetchFiltersConfig = () => {
-    fetch(`${configUrl}filters.json?cache_bust=true`)
-      .then(response => response.json())
-      .then(data => {
-        setFiltersConfig(JSON.stringify(data));
-      }).catch(error => {
-        console.error("Failed to fetch filters config:", error);
-      }
-    );
+  const fetchFiltersConfig = async () => {
+    const response = await fetch(`${configUrl}filters.json?cache_bust=true`);
+    const data = await response.json();
+    try {
+      setFiltersConfig(JSON.stringify(data));
+      console.log("Filters config fetched:", data);
+    } catch (error) {
+      console.error("Failed to fetch filters config:", error);
+    }
   };
+
+  // const fetchBadgeCount = async () => {
+  //   console.log("Cookies:", cookies);
+  //   const cookieHeader = Object.entries(cookies)
+  //     .map(([name, value]) => `${name}=${value}`)
+  //     .join('; ');
+
+  //   const response = await fetch(`${baseUrl}`, {
+  //     headers: {
+  //       'Cookie': cookieHeader,
+  //     }
+  //   });
+  //   const html = await response.text();
+  //   console.log("HTML:", html);
+  //   const parser = new DOMParser.DOMParser();
+  //   try {
+  //     const doc = parser.parseFromString(html, 'text/html');
+  //     console.log("Doc:", doc);
+  //     const unread = doc.querySelect(DM_COUNTER_ELEMENT);
+  //     console.log("Unread:", unread);
+  //   } catch (error) {
+  //     console.error("Failed to parse HTML:", error);
+  //   }
+  //   if (unread) {
+  //     const count = parseInt(unread.innerText);
+  //     if (count > 0 && count !== currentBadgeCount) {
+  //       displayNotification(count);
+  //       setCurrentBadgeCount(count);
+  //     }
+  //   }
+  // };
 
   const trackNavState = (nativeEvent: any) => {
     setCurrentUrl(nativeEvent.url);
@@ -104,6 +141,10 @@ const App = () => {
     if (wentBack) {
       setWentBack(false);
     }
+    // if (webViewRef.current) {
+    //   setCookies(CookieManager.get(baseUrl));
+    // }
+    //fetchBadgeCount();
   }
 
   const redirectToUrl = (url: string) => {
@@ -131,9 +172,9 @@ const App = () => {
     }
   };
 
-  const displayNotification = async (count: number) => {
-    const badgeCount = currentBadgeCount + count;
-    setCurrentBadgeCount(badgeCount);
+  const displayNotification = async () => {
+    const badgeCount = 1;
+    // setCurrentBadgeCount(badgeCount);
 
     // Request permissions (required for iOS)
     await notifee.requestPermission()
@@ -145,15 +186,19 @@ const App = () => {
       badge: true,
     });
 
-    // Increment badge count
-    await notifee.setBadgeCount(badgeCount); // iOS
-    await ShortcutBadge.setCount(badgeCount); // Android
+    // Set badge count
+    if (Platform.OS === 'ios') {
+      await notifee.setBadgeCount(badgeCount);
+    }
+    else if (Platform.OS === 'android') {
+      await ShortcutBadge.setCount(badgeCount);
+    }
 
     // Display a notification
     try {
       await notifee.displayNotification({
         id: 'instagram-dms',
-        body: `You have ${badgeCount} unread Instagram messages`,
+        body: `You have unread Instagram messages`,
         android: {
           channelId,
           smallIcon: 'insta_dms_icon',
@@ -162,12 +207,21 @@ const App = () => {
           pressAction: {
             id: 'default'
           },
-        },
+        }
       });
     } catch (error) {
       console.error('Failed to display notification:', error);
     }
   }
+
+  const handleNavigationStateChange = (navState: any) => {
+    if (!webViewRef.current) return;
+    redirectToSafety(navState);
+    if (navState.url === sourceUrl) {
+      // Request permissions (required for iOS)
+      notifee.requestPermission();
+    }
+  };
 
   const handleBackPress = () => {
     if (!webViewRef.current) return false;
@@ -204,16 +258,62 @@ const App = () => {
     }
   };
 
-  const handleMessage = (event: any) => {
-    const count = parseInt(event.nativeEvent.data);
-    if (currentUrl === baseUrl && count > 0 && count !== currentBadgeCount) {
-      displayNotification(count);
-      setCurrentBadgeCount(count);
+  const initBackgroundFetch = async () => {
+    console.log('[BackgroundFetch] Initialising...');
+    const status: number = await BackgroundFetch.configure({
+      minimumFetchInterval: 15, // in minutes (15 is minimum allowed)
+      // Android-specific options
+      stopOnTerminate: false,
+      startOnBoot: true,
+      enableHeadless: true,
+    }, async (taskId: string) => {
+      console.log('[BackgroundFetch] taskId', taskId);
+      // Perform task.
+      // await fetchFiltersConfig();
+      await displayNotification();
+      // Finish.
+      BackgroundFetch.finish(taskId);
+      console.log('[BackgroundFetch] Task finished:', taskId);
+    }, (taskId: string) => {
+      // Oh No!  Our task took too long to complete and the OS has signalled
+      // that this task must be finished immediately.
+      console.log('[Fetch] TIMEOUT taskId:', taskId);
+      BackgroundFetch.finish(taskId);
+      console.log('[BackgroundFetch] Task timeout finished:', taskId);
+    });
+    console.log('[BackgroundFetch] configure status:', status);
+
+    // Query the current BackgroundFetch status.
+    BackgroundFetch.status((status) => {
+      switch (status) {
+        case BackgroundFetch.STATUS_RESTRICTED:
+          console.log("BackgroundFetch restricted");
+          break;
+        case BackgroundFetch.STATUS_DENIED:
+          console.log("BackgroundFetch denied");
+          break;
+        case BackgroundFetch.STATUS_AVAILABLE:
+          console.log("BackgroundFetch is enabled");
+          break;
+      }
+    });
+  }
+
+  const onClickToggleEnabled = async () => {
+    if (bfEnabled) {
+      console.log('[BackgroundFetch] stop');
+      await BackgroundFetch.stop();
     }
-  };
+    else {
+      console.log('[BackgroundFetch] start');
+      await BackgroundFetch.start();
+    }
+    setBfEnabled(!bfEnabled);
+  }
 
   useEffect(() => {
     fetchFiltersConfig();
+    initBackgroundFetch();
   }, []); // Run once on component mount
 
   useEffect(() => {
@@ -221,31 +321,46 @@ const App = () => {
     return () => backHandler.remove(); // Cleanup
   }, [canGoBack]); // Re-run the effect when canGoBack changes
 
-  // Set background event handler
   notifee.onBackgroundEvent(async ({ type, detail }) => {
-    console.log('Background event:', type, detail);
+    const { notification, pressAction } = detail;
+  
+    // Check if the user pressed the "Mark as read" action
+    if (type === EventType.ACTION_PRESS && pressAction?.id === 'mark-as-read') {
+      if (Platform.OS === 'ios') {
+        await notifee.setBadgeCount(0);
+      }
+  
+      // Remove the notification
+      if (notification?.id) {
+        await notifee.cancelNotification(notification.id);
+      }
+    }
+
     redirectToUrl(sourceUrl);
   });
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* <View>
-        <Button title="Display Notification" onPress={() => displayNotification(1)} />
-      </View> */}
+      <View>
+        <Button title={"Background Fetch: " + bfEnabled} onPress={onClickToggleEnabled} />
+      </View>
+      <View>
+        <Button title="Display Notification" onPress={() => displayNotification()} />
+      </View>
       <WebView style={styles.container}
         ref={webViewRef}
         source={{ uri: sourceUrl }}
         injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
-        onMessage={handleMessage}
+        onMessage={() => {}}
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={() => <View />}
         onError={() => {handleLoadError()}}
         onLoad={() => {handleLoadSuccess()}}
         onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
-        onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
+        onNavigationStateChange={handleNavigationStateChange}
         onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
         onContentProcessDidTerminate={handleProcessTermination}
         onRenderProcessGone={handleProcessTermination}
