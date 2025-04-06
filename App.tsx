@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Button, Platform } from "react-native";
 import WebView from "react-native-webview";
-import notifee, { AndroidBadgeIconType, EventType } from '@notifee/react-native';
-import ShortcutBadge from 'react-native-app-badge';
 import BackgroundFetch from "react-native-background-fetch";
+import PushNotification from 'react-native-push-notification';
 // import CookieManager from '@react-native-cookies/cookies';
 
 const DEFAULT_FILTERS = [
@@ -36,6 +35,20 @@ const DEFAULT_FILTERS = [
 // const DM_COUNTER_ELEMENT = ".x1mpkggp.x1t2a60a.xg8j3zb.xyqdw3p.xo1l8bm.x1ncwhqj.xwmz7sl.x9f619.x1vvkbs.x16tdsg8.x1hl2dhg.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.html-span";
 const DM_COUNTER_ELEMENT = ".x1r695p9.x19f6ikt.x78zum5";
 
+// Push notifications setup
+PushNotification.configure({
+  // onNotification is called when a notification is to be emitted
+  onNotification: (notification: any) => console.log(notification),
+  // Permissions to register for iOS
+  permissions: {
+    alert: true,
+    badge: true,
+    sound: true,
+  },
+  popInitialNotification: true,
+  requestPermissions: Platform.OS === 'ios',
+});
+
 const App = () => {
   const webViewRef = useRef<WebView>(null);
   const baseUrl = `https://www.instagram.com/`;
@@ -52,10 +65,7 @@ const App = () => {
   const [wentBack, setWentBack] = useState(false);
   const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(DEFAULT_FILTERS));
   const [hasLoadError, setHasLoadError] = useState(false);
-  // const [currentBadgeCount, setCurrentBadgeCount] = useState(0);
-  const [cookies, setCookies] = useState({});
-  const [bfEnabled, setBfEnabled] = React.useState(true);
-  const [bfStatus, setBfStatus] = React.useState(-1);
+  // const [cookies, setCookies] = useState({});
 
   const injectedJavaScript = `
     removeElements = () => {
@@ -70,26 +80,8 @@ const App = () => {
       });
     };
 
-    fetchDmCounter = () => {
-      // Only run if we're on the baseUrl page
-      if (!window.location.href === '${baseUrl}') {
-        return;
-      }
-      // Check the unread DM counter
-      const unread = document.querySelector('${DM_COUNTER_ELEMENT}');
-      if (!unread) {
-        return;
-      }
-      const count = parseInt(unread.innerText);
-      if (count > 0 && count !== window.currentBadgeCount) {
-        window.ReactNativeWebView.postMessage(count.toString());
-        window.currentBadgeCount = count;
-      }
-    };
-
     setInterval(() => {
       removeElements();
-      // fetchDmCounter();
     }, 100);
   `;
 
@@ -172,54 +164,30 @@ const App = () => {
     }
   };
 
-  const displayNotification = async () => {
-    const badgeCount = 1;
-    // setCurrentBadgeCount(badgeCount);
-
-    // Request permissions (required for iOS)
-    await notifee.requestPermission()
+  const displayLocalNotification = async () => {
+    const channelId = "instagram"
 
     // Create a channel (required for Android)
-    const channelId = await notifee.createChannel({
-      id: 'instagram',
-      name: 'Instagram',
-      badge: true,
+    PushNotification.createChannel({
+      channelId: channelId, // (required)
+      channelName: 'Instagram', // (required)
+      channelDescription: 'Instagram direct message notifications', // (optional) default: undefined.
+      playSound: false, // (optional) default: true
     });
 
-    // Set badge count
-    if (Platform.OS === 'ios') {
-      await notifee.setBadgeCount(badgeCount);
-    }
-    else if (Platform.OS === 'android') {
-      await ShortcutBadge.setCount(badgeCount);
-    }
-
-    // Display a notification
+    // Display a local notification
     try {
-      await notifee.displayNotification({
-        id: 'instagram-dms',
-        body: `You have unread Instagram messages`,
-        android: {
-          channelId,
-          smallIcon: 'insta_dms_icon',
-          badgeIconType: AndroidBadgeIconType.SMALL,
-          // pressAction is needed if you want the notification to open the app when pressed
-          pressAction: {
-            id: 'default'
-          },
-        }
+      PushNotification.localNotification({
+        channelId: channelId,
+        message: 'You have unread Instagram messages',
+        smallIcon: 'insta_dms_icon',
+        // ignoreInForeground: true,
+        // onlyAlertOnce: true,
+        invokeApp: true,
+        number: 1,
       });
     } catch (error) {
-      console.error('Failed to display notification:', error);
-    }
-  }
-
-  const handleNavigationStateChange = (navState: any) => {
-    if (!webViewRef.current) return;
-    redirectToSafety(navState);
-    if (navState.url === sourceUrl) {
-      // Request permissions (required for iOS)
-      notifee.requestPermission();
+      console.error('Failed to display local notification:', error);
     }
   };
 
@@ -265,12 +233,12 @@ const App = () => {
       // Android-specific options
       stopOnTerminate: false,
       startOnBoot: true,
-      enableHeadless: true,
+      // enableHeadless: true,
     }, async (taskId: string) => {
       console.log('[BackgroundFetch] taskId', taskId);
       // Perform task.
-      // await fetchFiltersConfig();
-      await displayNotification();
+      await displayLocalNotification();
+      await fetchFiltersConfig();
       // Finish.
       BackgroundFetch.finish(taskId);
       console.log('[BackgroundFetch] Task finished:', taskId);
@@ -299,18 +267,6 @@ const App = () => {
     });
   }
 
-  const onClickToggleEnabled = async () => {
-    if (bfEnabled) {
-      console.log('[BackgroundFetch] stop');
-      await BackgroundFetch.stop();
-    }
-    else {
-      console.log('[BackgroundFetch] start');
-      await BackgroundFetch.start();
-    }
-    setBfEnabled(!bfEnabled);
-  }
-
   useEffect(() => {
     fetchFiltersConfig();
     initBackgroundFetch();
@@ -321,31 +277,10 @@ const App = () => {
     return () => backHandler.remove(); // Cleanup
   }, [canGoBack]); // Re-run the effect when canGoBack changes
 
-  notifee.onBackgroundEvent(async ({ type, detail }) => {
-    const { notification, pressAction } = detail;
-  
-    // Check if the user pressed the "Mark as read" action
-    if (type === EventType.ACTION_PRESS && pressAction?.id === 'mark-as-read') {
-      if (Platform.OS === 'ios') {
-        await notifee.setBadgeCount(0);
-      }
-  
-      // Remove the notification
-      if (notification?.id) {
-        await notifee.cancelNotification(notification.id);
-      }
-    }
-
-    redirectToUrl(sourceUrl);
-  });
-
   return (
     <SafeAreaView style={styles.container}>
       <View>
-        <Button title={"Background Fetch: " + bfEnabled} onPress={onClickToggleEnabled} />
-      </View>
-      <View>
-        <Button title="Display Notification" onPress={() => displayNotification()} />
+        <Button title="Display Notification" onPress={() => displayLocalNotification()} />
       </View>
       <WebView style={styles.container}
         ref={webViewRef}
@@ -360,7 +295,7 @@ const App = () => {
         onError={() => {handleLoadError()}}
         onLoad={() => {handleLoadSuccess()}}
         onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
-        onNavigationStateChange={handleNavigationStateChange}
+        onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
         onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
         onContentProcessDidTerminate={handleProcessTermination}
         onRenderProcessGone={handleProcessTermination}
