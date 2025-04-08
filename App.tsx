@@ -32,8 +32,6 @@ const DEFAULT_FILTERS = [
   // Reels
   ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
 ];
-// const DM_COUNTER_ELEMENT = ".x1mpkggp.x1t2a60a.xg8j3zb.xyqdw3p.xo1l8bm.x1ncwhqj.xwmz7sl.x9f619.x1vvkbs.x16tdsg8.x1hl2dhg.x1mh8g0r.xat24cr.x11i5rnm.xdj266r.html-span";
-const DM_COUNTER_ELEMENT = ".x1r695p9.x19f6ikt.x78zum5";
 
 // Push notifications setup
 PushNotification.configure({
@@ -53,6 +51,7 @@ const App = () => {
   const webViewRef = useRef<WebView>(null);
   const baseUrl = `https://www.instagram.com/`;
   const sourceUrl = `${baseUrl}direct/inbox/`;
+  const apiUrl = `https://i.instagram.com/api/v1/direct_v2/inbox/`;
   const redirectFromUrls = [
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
@@ -114,7 +113,7 @@ const App = () => {
         true;`
       );
     }
-    // fetchUnreadMessages();
+    fetchLatestUnreadMessage();
   };
 
   const redirectToUrl = (url: string) => {
@@ -156,76 +155,79 @@ const App = () => {
 
   const handleMessage = (event: any) => {
     const { cookies, userAgent } = JSON.parse(event.nativeEvent.data);
-    console.log("🍪 Cookies:", cookies);
-    console.log("📱 User-Agent:", userAgent);
+    console.log("Cookies:", cookies);
+    console.log("User-Agent:", userAgent);
     saveHeaders(cookies, userAgent);
   };
 
   const loadHeaders = async () => {
     console.log("Loading headers from storage");
-    try {
-      const cookies = await AsyncStorage.getItem('cookies');
-      console.log("Cookies loaded:", cookies);
-      const userAgent = await AsyncStorage.getItem('userAgent');
-      console.log("User agent loaded:", userAgent);
-      console.log("Headers loaded:", {cookies, userAgent});
-      if (!cookies || !userAgent) {
-        console.error("No cookies or user agent found");
-        throw new Error("No cookies or user agent found");
-      }
-      return { cookies, userAgent };
-    } catch (error) {
-      console.error("Failed to load cookies:", error);
+    const cookies = await AsyncStorage.getItem('cookies');
+    console.log("Cookies loaded:", cookies);
+    const userAgent = await AsyncStorage.getItem('userAgent');
+    console.log("User agent loaded:", userAgent);
+    console.log("Headers loaded:", {cookies, userAgent});
+    if (!cookies || !userAgent) {
+      console.error("No cookies or user agent found");
+      throw new Error("No cookies or user agent found");
     }
-    return {};
+    return { cookies, userAgent };
   };
 
-  const fetchUnreadMessages = async () => {
+  const fetchLatestUnreadMessage = async () => {
     const {cookies, userAgent} = await loadHeaders();
-    if (!cookies) {
-      console.error("No cookies found");
-      return;
-    }
-    if (!userAgent) {
-      console.error("No user agent found");
-      return;
-    }
+    const lastMessageTimestamp = await AsyncStorage.getItem('lastMessageTimestamp');
 
     const match = cookies.match(/csrftoken=([^;]+)/);
     if (!match) {
       console.error("No csrftoken found in cookies");
-      return;
+      return {};
     }
     const csrftoken = match[1];
-    console.log("csrftoken:", csrftoken);
+
+    const headers = {
+      "x-ig-app-id": "936619743392459",
+      "User-Agent": userAgent,
+      "Accept": "*/*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Origin": "https://i.instagram.com",
+      "Referer": sourceUrl,
+      "Priority": "u=1, i",
+      "X-CSRFToken": csrftoken,
+      'Cookie': cookies,
+    };
 
     console.log("Fetching unread messages...");
+    fetch(sourceUrl, {method: 'GET', headers: headers}); // Concurrently fetch the source URL to mask the private API call
     try {
-      const response = await fetch(`https://i.instagram.com/api/v1/direct_v2/inbox/?thread_message_limit=10&persistentBadging=true&limit=20&visual_message_return_type=unseen`, {
+      const response = await fetch(`${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`, {
         method: 'GET',
-        headers: {
-          "x-ig-app-id": "936619743392459",
-          "User-Agent": userAgent,
-          "Accept": "*/*",
-          "Accept-Language": "en-US,en;q=0.9",
-          "Accept-Encoding": "gzip, deflate, br",
-          "Origin": "https://i.instagram.com",
-          "Referer": sourceUrl,
-          "Priority": "u=1, i",
-          "X-CSRFToken": csrftoken,
-          'Cookie': cookies,
-        },
+        headers: headers,
       });
 
-      console.log("Response:", response);
       const data = await response.json();
       console.log("Data:", data);
+
+      for (const thread of data.inbox.threads) {
+        if (!lastMessageTimestamp || thread.last_non_sender_item_at > parseInt(lastMessageTimestamp)) {
+          const userName = thread.thread_title;
+          // Get the first non-sender message in the thread
+          const firstNonSenderMessage = thread.items.find((item: any) => !item.is_sent_by_viewer);
+          const messageText = firstNonSenderMessage?.text || `You have a new message from ${userName}`;
+          // Save the last message timestamp
+          await AsyncStorage.setItem('lastMessageTimestamp', thread.last_non_sender_item_at.toString());
+          return {userName, messageText};
+        }
+      }
     } catch (error) {
       console.error("Failed to fetch unread messages:", error);
     }
+    console.log("No new messages");
+    return {};
   };
 
-  const displayLocalNotification = async () => {
+  const displayLocalNotification = async (userName: string, messageText: string) => {
     console.log("Displaying local notification...");
     const channelId = "instagram"
 
@@ -240,12 +242,12 @@ const App = () => {
     // Display a local notification
     await PushNotification.localNotification({
       channelId: channelId,
-      message: 'You have unread Instagram messages',
+      title: userName,
+      message: messageText,
       smallIcon: 'insta_dms_icon',
-      ignoreInForeground: true,
+      // ignoreInForeground: true,
       onlyAlertOnce: true,
       invokeApp: true,
-      number: 1,
     });
   };
 
@@ -260,8 +262,12 @@ const App = () => {
     }, async (taskId: string) => {
       console.log('[BackgroundFetch] taskId', taskId);
       // Perform task.
-      // await fetchUnreadMessages();
-      await displayLocalNotification();
+      const {userName, messageText} = await fetchLatestUnreadMessage();
+      if (userName && messageText) {
+        await displayLocalNotification(userName, messageText);
+      } else {
+        console.log("No notification to display");
+      }
       // Finish.
       BackgroundFetch.finish(taskId);
       console.log('[BackgroundFetch] Task finished:', taskId);
@@ -337,9 +343,6 @@ const App = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View>
-        <Button title="Fetch Unread Messages" onPress={() => fetchUnreadMessages()} />
-      </View>
       <WebView style={styles.container}
         ref={webViewRef}
         source={{ uri: sourceUrl }}
