@@ -153,15 +153,13 @@ const App = () => {
 
   const handleMessage = async (event: any) => {
     console.log("Message received from WebView:", event.nativeEvent.data);
-    let { cookies, userAgent } = JSON.parse(event.nativeEvent.data);
-    if (!cookies || !userAgent) {
-      console.error("No cookies or user agent found");
+    let { userAgent } = JSON.parse(event.nativeEvent.data);
+    if (!userAgent) {
+      console.error("No user agent found");
       return;
     }
     console.log("User-Agent:", userAgent);
-    if (Platform.OS === 'ios') {
-      cookies = await getCookies();
-    }
+    const cookies = await getCookies();
     console.log("Cookies:", cookies);
     saveHeaders(cookies, userAgent);
   };
@@ -346,9 +344,8 @@ const App = () => {
       console.log("Injecting JavaScript to get cookies and user agent...");
       webViewRef.current.injectJavaScript(
         `(function() {
-          const cookies = document.cookie;
           const userAgent = navigator.userAgent;
-          window.ReactNativeWebView.postMessage(JSON.stringify({ cookies, userAgent }));
+          window.ReactNativeWebView.postMessage(JSON.stringify({ userAgent }));
         })();
         true;`
       );
