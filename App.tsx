@@ -147,7 +147,6 @@ const App = () => {
     const result = await CookieManager.get(baseUrl, true);
     const resultString = Object.entries(result).map(([key, value]) => `${key}=${value.value}`).join('; ');
     console.log("Retrieved cookies via CookieManager:", resultString);
-    // return the cookies as a ; delimited string
     return resultString;
   };
 
@@ -207,7 +206,7 @@ const App = () => {
     };
 
     console.log("Fetching unread messages...");
-    // fetch(sourceUrl, {method: 'GET', headers: headers}); // Concurrently fetch the source URL to mask the private API call
+    fetch(sourceUrl, {method: 'GET', headers: headers}); // Concurrently fetch the source URL to mask the private API call
     try {
       const response = await fetch(`${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`, {
         method: 'GET',
