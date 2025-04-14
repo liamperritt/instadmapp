@@ -4,6 +4,7 @@ import WebView from "react-native-webview";
 import BackgroundFetch from "react-native-background-fetch";
 import PushNotification from 'react-native-push-notification';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CookieManager from '@react-native-cookies/cookies';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -141,11 +142,27 @@ const App = () => {
     }
   };
 
-  const handleMessage = (event: any) => {
+  const getCookies = async () => {
+    console.log("Getting cookies via CookieManager...");
+    const result = await CookieManager.get(baseUrl, true);
+    const resultString = Object.entries(result).map(([key, value]) => `${key}=${value.value}`).join('; ');
+    console.log("Retrieved cookies via CookieManager:", resultString);
+    // return the cookies as a ; delimited string
+    return resultString;
+  };
+
+  const handleMessage = async (event: any) => {
     console.log("Message received from WebView:", event.nativeEvent.data);
-    const { cookies, userAgent } = JSON.parse(event.nativeEvent.data);
-    console.log("Cookies:", cookies);
+    let { cookies, userAgent } = JSON.parse(event.nativeEvent.data);
+    if (!cookies || !userAgent) {
+      console.error("No cookies or user agent found");
+      return;
+    }
     console.log("User-Agent:", userAgent);
+    if (Platform.OS === 'ios') {
+      cookies = await getCookies();
+    }
+    console.log("Cookies:", cookies);
     saveHeaders(cookies, userAgent);
   };
 
@@ -180,15 +197,19 @@ const App = () => {
       "Accept": "*/*",
       "Accept-Language": "en-US,en;q=0.9",
       "Accept-Encoding": "gzip, deflate, br",
+      "Content-Type": "application/x-www-form-urlencoded",
       "Origin": "https://i.instagram.com",
       "Referer": sourceUrl,
       "Priority": "u=1, i",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
       "X-CSRFToken": csrftoken,
       'Cookie': cookies,
     };
 
     console.log("Fetching unread messages...");
-    fetch(sourceUrl, {method: 'GET', headers: headers}); // Concurrently fetch the source URL to mask the private API call
+    // fetch(sourceUrl, {method: 'GET', headers: headers}); // Concurrently fetch the source URL to mask the private API call
     try {
       const response = await fetch(`${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`, {
         method: 'GET',
