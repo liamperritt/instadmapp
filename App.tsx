@@ -102,18 +102,6 @@ const App = () => {
       setWentBack(false);
     }
     if (!webViewRef.current) return;
-    if (nativeEvent.url === sourceUrl) {
-      // Get cookies and user agent from the WebView
-      webViewRef.current.injectJavaScript(
-        `(function() {
-          const cookies = document.cookie;
-          const userAgent = navigator.userAgent;
-          window.ReactNativeWebView.postMessage(JSON.stringify({ cookies, userAgent }));
-        })();
-        true;`
-      );
-    }
-    fetchLatestUnreadMessage();
   };
 
   const redirectToUrl = (url: string) => {
@@ -154,6 +142,7 @@ const App = () => {
   };
 
   const handleMessage = (event: any) => {
+    console.log("Message received from WebView:", event.nativeEvent.data);
     const { cookies, userAgent } = JSON.parse(event.nativeEvent.data);
     console.log("Cookies:", cookies);
     console.log("User-Agent:", userAgent);
@@ -206,8 +195,17 @@ const App = () => {
         headers: headers,
       });
 
-      const data = await response.json();
-      console.log("Data:", data);
+      const text = await response.text();
+      console.log('Raw response:', text);
+
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+        console.log("Data:", data);
+      } catch (error) {
+        console.error("Failed to parse JSON:", error);
+        return {};
+      }
 
       for (const thread of data.inbox.threads) {
         if (!lastMessageTimestamp || thread.last_non_sender_item_at > parseInt(lastMessageTimestamp)) {
@@ -227,7 +225,7 @@ const App = () => {
     return {};
   };
 
-  const displayLocalNotification = async (userName: string, messageText: string) => {
+  const displayLocalNotification = async () => {
     console.log("Displaying local notification...");
     const channelId = "instagram"
 
@@ -242,12 +240,13 @@ const App = () => {
     // Display a local notification
     await PushNotification.localNotification({
       channelId: channelId,
-      title: userName,
-      message: messageText,
+      title: "Instagram",
+      message: "You have unread messages",
       smallIcon: 'insta_dms_icon',
       // ignoreInForeground: true,
       onlyAlertOnce: true,
       invokeApp: true,
+      importance: 'high',
     });
   };
 
@@ -264,7 +263,7 @@ const App = () => {
       // Perform task.
       const {userName, messageText} = await fetchLatestUnreadMessage();
       if (userName && messageText) {
-        await displayLocalNotification(userName, messageText);
+        await displayLocalNotification();
       } else {
         console.log("No notification to display");
       }
@@ -318,8 +317,22 @@ const App = () => {
     }, 1000); // Retry after 1 second
   };
 
-  const handleLoadSuccess = () => {
+  const handleLoadSuccess = (nativeEvent: any) => {
     setHasLoadError(false);
+    if (!webViewRef.current) return;
+    if (nativeEvent.url === sourceUrl) {
+      // Get cookies and user agent from the WebView
+      console.log("Injecting JavaScript to get cookies and user agent...");
+      webViewRef.current.injectJavaScript(
+        `(function() {
+          const cookies = document.cookie;
+          const userAgent = navigator.userAgent;
+          window.ReactNativeWebView.postMessage(JSON.stringify({ cookies, userAgent }));
+        })();
+        true;`
+      );
+    }
+    fetchLatestUnreadMessage();
   };
 
   const handleProcessTermination = () => {
@@ -354,7 +367,7 @@ const App = () => {
         startInLoadingState={true}
         renderLoading={() => <View />}
         onError={() => {handleLoadError()}}
-        onLoad={() => {handleLoadSuccess()}}
+        onLoad={(syntheticEvent) => {handleLoadSuccess(syntheticEvent.nativeEvent)}}
         onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
         onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
         onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
