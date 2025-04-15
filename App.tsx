@@ -97,6 +97,7 @@ const App = () => {
   };
 
   const trackNavState = (nativeEvent: any) => {
+    console.log("Tracking navigation state:", nativeEvent);
     setCurrentUrl(nativeEvent.url);
     setCanGoBack(nativeEvent.canGoBack);
     if (wentBack) {
@@ -111,12 +112,14 @@ const App = () => {
   };
 
   const redirectToSafety = (navState: any) => {
+    console.log("Checking if we need to redirect to safety...");
     if (!webViewRef.current) return;
     if (
       (navState.url === baseUrl && currentUrl !== baseUrl && currentUrl !== sourceUrl && !wentBack) // Redirect from base Url, but avoid infinite loops
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
       // Redirect to the source URL
+      console.log("Redirecting to source URL:", sourceUrl);
       redirectToUrl(sourceUrl);
     }
   };
@@ -177,7 +180,28 @@ const App = () => {
     return { cookies, userAgent };
   };
 
-  const fetchLatestUnreadMessage = async () => {
+  const fetchLatestUnreadMessageIfPermitted = (maskFetch: boolean, displayNotification: boolean, callback: Function = () => {}) => {
+    // Only hit Instagram's internal API if the user has granted notification permission
+    console.log("Checking push notification permissions...");
+    PushNotification.checkPermissions(async (permissions: any) => {
+      if (!permissions.alert) {
+        console.log("Push notification permissions denied");
+        return callback();
+      }
+      console.log("Push notification permissions granted");
+      const {userName, messageText} = await fetchLatestUnreadMessage(maskFetch);
+      if (!displayNotification) return callback();
+      if (userName && messageText) {
+        await displayLocalNotification();
+      } else {
+        console.log("No notification to display");
+      }
+    });
+    return callback();
+  };
+
+  const fetchLatestUnreadMessage = async (maskFetch: boolean = false) => {
+    console.log("Loading headers...");
     const {cookies, userAgent} = await loadHeaders();
     const lastMessageTimestamp = await AsyncStorage.getItem('lastMessageTimestamp');
 
@@ -206,7 +230,10 @@ const App = () => {
     };
 
     console.log("Fetching unread messages...");
-    fetch(sourceUrl, {method: 'GET', headers: headers}); // Concurrently fetch the source URL to mask the private API call
+    if (maskFetch) {
+      console.log("Masking fetch...");
+      fetch(sourceUrl, {method: 'GET', headers: headers}); // Concurrently fetch the source URL to mask the private API call
+    }
     try {
       const response = await fetch(`${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`, {
         method: 'GET',
@@ -233,6 +260,7 @@ const App = () => {
           const messageText = firstNonSenderMessage?.text || `You have a new message from ${userName}`;
           // Save the last message timestamp
           await AsyncStorage.setItem('lastMessageTimestamp', thread.last_non_sender_item_at.toString());
+          console.log("New message found:", {userName, messageText});
           return {userName, messageText};
         }
       }
@@ -279,15 +307,10 @@ const App = () => {
     }, async (taskId: string) => {
       console.log('[BackgroundFetch] taskId', taskId);
       // Perform task.
-      const {userName, messageText} = await fetchLatestUnreadMessage();
-      if (userName && messageText) {
-        await displayLocalNotification();
-      } else {
-        console.log("No notification to display");
-      }
-      // Finish.
-      BackgroundFetch.finish(taskId);
-      console.log('[BackgroundFetch] Task finished:', taskId);
+      fetchLatestUnreadMessageIfPermitted(true, true, async () => {
+        BackgroundFetch.finish(taskId);
+        console.log('[BackgroundFetch] Task finished:', taskId);
+      });
     }, (taskId: string) => {
       // Oh No!  Our task took too long to complete and the OS has signalled
       // that this task must be finished immediately.
@@ -336,9 +359,15 @@ const App = () => {
   };
 
   const handleLoadSuccess = (nativeEvent: any) => {
+    console.log("Handling load success:", nativeEvent);
     setHasLoadError(false);
+  };
+
+  const handleNavigationStateChange = (navState: any) => {
+    console.log("Handling navigation state change:", navState);
     if (!webViewRef.current) return;
-    if (nativeEvent.url === sourceUrl) {
+    redirectToSafety(navState);
+    if (navState.url === sourceUrl) {
       // Get cookies and user agent from the WebView
       console.log("Injecting JavaScript to get cookies and user agent...");
       webViewRef.current.injectJavaScript(
@@ -348,8 +377,8 @@ const App = () => {
         })();
         true;`
       );
+      fetchLatestUnreadMessageIfPermitted(false, false);
     }
-    fetchLatestUnreadMessage();
   };
 
   const handleProcessTermination = () => {
@@ -386,7 +415,7 @@ const App = () => {
         onError={() => {handleLoadError()}}
         onLoad={(syntheticEvent) => {handleLoadSuccess(syntheticEvent.nativeEvent)}}
         onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
-        onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
+        onNavigationStateChange={handleNavigationStateChange}
         onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
         onContentProcessDidTerminate={handleProcessTermination}
         onRenderProcessGone={handleProcessTermination}
