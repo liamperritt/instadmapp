@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Button, Platform } from "react-native";
+import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Platform } from "react-native";
 import WebView from "react-native-webview";
 import BackgroundFetch from "react-native-background-fetch";
 import PushNotification from 'react-native-push-notification';
@@ -306,7 +306,7 @@ const App = () => {
       title: "Instagram",
       message: "You have unread messages",
       smallIcon: 'insta_dms_icon',
-      // ignoreInForeground: true,
+      ignoreInForeground: true,
       onlyAlertOnce: true,
       invokeApp: true,
       importance: 'high',
