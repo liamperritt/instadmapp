@@ -180,24 +180,25 @@ const App = () => {
     return { cookies, userAgent };
   };
 
-  const fetchLatestUnreadMessageIfPermitted = (maskFetch: boolean, displayNotification: boolean, callback: Function = () => {}) => {
-    // Only hit Instagram's internal API if the user has granted notification permission
-    console.log("Checking push notification permissions...");
-    PushNotification.checkPermissions(async (permissions: any) => {
-      if (!permissions.alert) {
-        console.log("Push notification permissions denied");
-        return callback();
-      }
-      console.log("Push notification permissions granted");
-      const {userName, messageText} = await fetchLatestUnreadMessage(maskFetch);
-      if (!displayNotification) return callback();
-      if (userName && messageText) {
-        await displayLocalNotification();
-      } else {
-        console.log("No notification to display");
-      }
+  const makeHttpRequest = async (url: string, method: string, headers: any) => {
+    // Make HTTP request leveraging the XMLHttpRequest API and using promises
+    return new Promise<string>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open(method, url);
+      Object.keys(headers).forEach(key => {
+        request.setRequestHeader(key, headers[key]);
+      });
+      request.onreadystatechange = () => {
+        if (request.readyState === XMLHttpRequest.DONE) {
+          if (request.status === 200) {
+            resolve(request.responseText);
+          } else {
+            reject(new Error(`HTTP request failed with status ${request.status}`));
+          }
+        }
+      };
+      request.send();
     });
-    return callback();
   };
 
   const fetchLatestUnreadMessage = async (maskFetch: boolean = false) => {
@@ -232,20 +233,16 @@ const App = () => {
     console.log("Fetching unread messages...");
     if (maskFetch) {
       console.log("Masking fetch...");
-      fetch(sourceUrl, {method: 'GET', headers: headers}); // Concurrently fetch the source URL to mask the private API call
+      makeHttpRequest(sourceUrl, 'GET', headers); // Concurrently fetch the source URL to mask the private API call
     }
     try {
-      const response = await fetch(`${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`, {
-        method: 'GET',
-        headers: headers,
-      });
-
-      const text = await response.text();
-      console.log('Raw response:', text);
+      const response = await makeHttpRequest(`${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`, 'GET', headers);
+      console.log('Raw response:', response);
 
       let data: any = null;
       try {
-        data = JSON.parse(text);
+        // Set data to the parsed response JSON
+        data = JSON.parse(response);
         console.log("Data:", data);
       } catch (error) {
         console.error("Failed to parse JSON:", error);
@@ -271,6 +268,26 @@ const App = () => {
     return {};
   };
 
+  const fetchLatestUnreadMessageIfPermitted = (maskFetch: boolean, displayNotification: boolean, callback: Function = () => {}) => {
+    // Only hit Instagram's internal API if the user has granted notification permission
+    console.log("Checking push notification permissions...");
+    PushNotification.checkPermissions(async (permissions: any) => {
+      if (!permissions.alert) {
+        console.log("Push notification permissions denied");
+        return callback();
+      }
+      console.log("Push notification permissions granted");
+      const {userName, messageText} = await fetchLatestUnreadMessage(maskFetch);
+      if (!displayNotification) return callback();
+      if (userName && messageText) {
+        await displayLocalNotification();
+      } else {
+        console.log("No notification to display");
+      }
+    });
+    return callback();
+  };
+
   const displayLocalNotification = async () => {
     console.log("Displaying local notification...");
     const channelId = "instagram"
@@ -278,8 +295,8 @@ const App = () => {
     // Create a channel (required for Android)
     await PushNotification.createChannel({
       channelId: channelId, // (required)
-      channelName: 'Instagram', // (required)
-      channelDescription: 'Instagram direct message notifications', // (optional) default: undefined.
+      channelName: 'Instagram direct messages', // (required)
+      channelDescription: 'Unread Instagram direct message notifications', // (optional) default: undefined.
       playSound: false, // (optional) default: true
     });
 
