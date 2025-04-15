@@ -302,6 +302,7 @@ const App = () => {
 
     // Display a local notification
     await PushNotification.localNotification({
+      id: 0,
       channelId: channelId,
       title: "Instagram",
       message: "You have unread messages",
