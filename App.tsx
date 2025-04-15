@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text } from "react-native";
+import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Platform } from "react-native";
 import WebView from "react-native-webview";
+import BackgroundFetch from "react-native-background-fetch";
+import PushNotification from 'react-native-push-notification';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import CookieManager from '@react-native-cookies/cookies';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -30,10 +34,25 @@ const DEFAULT_FILTERS = [
   ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
 ];
 
+// Push notifications setup
+PushNotification.configure({
+  // onNotification is called when a notification is to be emitted
+  onNotification: (notification: any) => console.log(notification),
+  // Permissions to register for iOS
+  permissions: {
+    alert: true,
+    badge: true,
+    sound: true,
+  },
+  popInitialNotification: true,
+  requestPermissions: Platform.OS === 'ios',
+});
+
 const App = () => {
   const webViewRef = useRef<WebView>(null);
   const baseUrl = `https://www.instagram.com/`;
   const sourceUrl = `${baseUrl}direct/inbox/`;
+  const apiUrl = `https://i.instagram.com/api/v1/direct_v2/inbox/`;
   const redirectFromUrls = [
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
@@ -59,38 +78,49 @@ const App = () => {
         }
       });
     };
+
     setInterval(() => {
       removeElements();
     }, 100);
   `;
 
-  const fetchFiltersConfig = () => {
-    fetch(`${configUrl}filters.json?cache_bust=true`)
-      .then(response => response.json())
-      .then(data => {
-        setFiltersConfig(JSON.stringify(data));
-      }).catch(error => {
-        console.error("Failed to fetch filters config:", error);
-      }
-    );
+  const fetchFiltersConfig = async () => {
+    console.log("Fetching filters config...");
+    try {
+      const response = await fetch(`${configUrl}filters.json?cache_bust=true`);
+      const data = await response.json();
+      setFiltersConfig(JSON.stringify(data));
+      console.log("Filters config fetched:", data);
+    } catch (error) {
+      console.error("Failed to fetch filters config:", error);
+    }
   };
 
   const trackNavState = (nativeEvent: any) => {
+    console.log("Tracking navigation state:", nativeEvent);
     setCurrentUrl(nativeEvent.url);
     setCanGoBack(nativeEvent.canGoBack);
     if (wentBack) {
       setWentBack(false);
     }
-  }
+    if (!webViewRef.current) return;
+  };
+
+  const redirectToUrl = (url: string) => {
+    if (!webViewRef.current) return;
+    webViewRef.current.injectJavaScript(`window.location.href = '${url}';`);
+  };
 
   const redirectToSafety = (navState: any) => {
+    console.log("Checking if we need to redirect to safety...");
     if (!webViewRef.current) return;
     if (
       (navState.url === baseUrl && currentUrl !== baseUrl && currentUrl !== sourceUrl && !wentBack) // Redirect from base Url, but avoid infinite loops
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
       // Redirect to the source URL
-      webViewRef.current.injectJavaScript(`window.location.href = '${sourceUrl}';`);
+      console.log("Redirecting to source URL:", sourceUrl);
+      redirectToUrl(sourceUrl);
     }
   };
 
@@ -101,6 +131,227 @@ const App = () => {
       // Instead, open the link in the WebView
       webViewRef.current.injectJavaScript(`window.location.href = '${nativeEvent.targetUrl}';`);
     }
+  };
+
+  const saveHeaders = async (cookies: string, userAgent: string) => {
+    if (!webViewRef.current) return;
+
+    console.log("Saving headers to storage");
+    try {
+      await AsyncStorage.setItem('cookies', JSON.stringify(cookies));
+      await AsyncStorage.setItem('userAgent', JSON.stringify(userAgent));
+    } catch (error) {
+      console.error("Failed to save headers:", error);
+    }
+  };
+
+  const getCookies = async () => {
+    console.log("Getting cookies via CookieManager...");
+    const result = await CookieManager.get(baseUrl, true);
+    const resultString = Object.entries(result).map(([key, value]) => `${key}=${value.value}`).join('; ');
+    console.log("Retrieved cookies via CookieManager:", resultString);
+    return resultString;
+  };
+
+  const handleMessage = async (event: any) => {
+    console.log("Message received from WebView:", event.nativeEvent.data);
+    let { userAgent } = JSON.parse(event.nativeEvent.data);
+    if (!userAgent) {
+      console.error("No user agent found");
+      return;
+    }
+    console.log("User-Agent:", userAgent);
+    const cookies = await getCookies();
+    console.log("Cookies:", cookies);
+    saveHeaders(cookies, userAgent);
+  };
+
+  const loadHeaders = async () => {
+    console.log("Loading headers from storage");
+    const cookies = await AsyncStorage.getItem('cookies');
+    console.log("Cookies loaded:", cookies);
+    const userAgent = await AsyncStorage.getItem('userAgent');
+    console.log("User agent loaded:", userAgent);
+    console.log("Headers loaded:", {cookies, userAgent});
+    if (!cookies || !userAgent) {
+      console.error("No cookies or user agent found");
+      throw new Error("No cookies or user agent found");
+    }
+    return { cookies, userAgent };
+  };
+
+  const makeHttpRequest = async (url: string, method: string, headers: any) => {
+    // Make HTTP request leveraging the XMLHttpRequest API and using promises
+    return new Promise<string>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open(method, url);
+      Object.keys(headers).forEach(key => {
+        request.setRequestHeader(key, headers[key]);
+      });
+      request.onreadystatechange = () => {
+        if (request.readyState === XMLHttpRequest.DONE) {
+          if (request.status === 200) {
+            resolve(request.responseText);
+          } else {
+            reject(new Error(`HTTP request failed with status ${request.status}`));
+          }
+        }
+      };
+      request.send();
+    });
+  };
+
+  const fetchLatestUnreadMessage = async (maskFetch: boolean = false) => {
+    console.log("Loading headers...");
+    const {cookies, userAgent} = await loadHeaders();
+    const lastMessageTimestamp = await AsyncStorage.getItem('lastMessageTimestamp');
+
+    const match = cookies.match(/csrftoken=([^;]+)/);
+    if (!match) {
+      console.error("No csrftoken found in cookies");
+      return {};
+    }
+    const csrftoken = match[1];
+
+    const headers = {
+      "x-ig-app-id": "936619743392459",
+      "User-Agent": userAgent,
+      "Accept": "*/*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://i.instagram.com",
+      "Referer": sourceUrl,
+      "Priority": "u=1, i",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
+      "X-CSRFToken": csrftoken,
+      'Cookie': cookies,
+    };
+
+    console.log("Fetching unread messages...");
+    if (maskFetch) {
+      console.log("Masking fetch...");
+      makeHttpRequest(sourceUrl, 'GET', headers); // Concurrently fetch the source URL to mask the private API call
+    }
+    try {
+      const response = await makeHttpRequest(`${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`, 'GET', headers);
+      console.log('Raw response:', response);
+
+      let data: any = null;
+      try {
+        // Set data to the parsed response JSON
+        data = JSON.parse(response);
+        console.log("Data:", data);
+      } catch (error) {
+        console.error("Failed to parse JSON:", error);
+        return {};
+      }
+
+      for (const thread of data.inbox.threads) {
+        if (!lastMessageTimestamp || thread.last_non_sender_item_at > parseInt(lastMessageTimestamp)) {
+          const userName = thread.thread_title;
+          // Get the first non-sender message in the thread
+          const firstNonSenderMessage = thread.items.find((item: any) => !item.is_sent_by_viewer);
+          const messageText = firstNonSenderMessage?.text || `You have a new message from ${userName}`;
+          // Save the last message timestamp
+          await AsyncStorage.setItem('lastMessageTimestamp', thread.last_non_sender_item_at.toString());
+          console.log("New message found:", {userName, messageText});
+          return {userName, messageText};
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread messages:", error);
+    }
+    console.log("No new messages");
+    return {};
+  };
+
+  const fetchLatestUnreadMessageIfPermitted = (maskFetch: boolean, displayNotification: boolean, callback: Function = () => {}) => {
+    // Only hit Instagram's internal API if the user has granted notification permission
+    console.log("Checking push notification permissions...");
+    PushNotification.checkPermissions(async (permissions: any) => {
+      if (!permissions.alert) {
+        console.log("Push notification permissions denied");
+        return callback();
+      }
+      console.log("Push notification permissions granted");
+      const {userName, messageText} = await fetchLatestUnreadMessage(maskFetch);
+      if (!displayNotification) return callback();
+      if (userName && messageText) {
+        await displayLocalNotification();
+      } else {
+        console.log("No notification to display");
+      }
+    });
+    return callback();
+  };
+
+  const displayLocalNotification = async () => {
+    console.log("Displaying local notification...");
+    const channelId = "instagram"
+
+    // Create a channel (required for Android)
+    await PushNotification.createChannel({
+      channelId: channelId, // (required)
+      channelName: 'Instagram direct messages', // (required)
+      channelDescription: 'Unread Instagram direct message notifications', // (optional) default: undefined.
+      playSound: false, // (optional) default: true
+    });
+
+    // Display a local notification
+    await PushNotification.localNotification({
+      id: 0,
+      channelId: channelId,
+      title: "Instagram",
+      message: "You have unread messages",
+      smallIcon: 'insta_dms_icon',
+      ignoreInForeground: true,
+      onlyAlertOnce: true,
+      invokeApp: true,
+      importance: 'high',
+    });
+  };
+
+  const initBackgroundFetch = async () => {
+    console.log('[BackgroundFetch] Initialising...');
+    const status: number = await BackgroundFetch.configure({
+      minimumFetchInterval: 15, // in minutes (15 is minimum allowed)
+      // Android-specific options
+      stopOnTerminate: false,
+      startOnBoot: true,
+      requiredNetworkType: BackgroundFetch.NETWORK_TYPE_ANY,
+    }, async (taskId: string) => {
+      console.log('[BackgroundFetch] taskId', taskId);
+      // Perform task.
+      fetchLatestUnreadMessageIfPermitted(true, true, async () => {
+        BackgroundFetch.finish(taskId);
+        console.log('[BackgroundFetch] Task finished:', taskId);
+      });
+    }, (taskId: string) => {
+      // Oh No!  Our task took too long to complete and the OS has signalled
+      // that this task must be finished immediately.
+      console.log('[Fetch] TIMEOUT taskId:', taskId);
+      BackgroundFetch.finish(taskId);
+      console.log('[BackgroundFetch] Task timeout finished:', taskId);
+    });
+    console.log('[BackgroundFetch] configure status:', status);
+
+    // Query the current BackgroundFetch status.
+    BackgroundFetch.status((status) => {
+      switch (status) {
+        case BackgroundFetch.STATUS_RESTRICTED:
+          console.log("BackgroundFetch restricted");
+          break;
+        case BackgroundFetch.STATUS_DENIED:
+          console.log("BackgroundFetch denied");
+          break;
+        case BackgroundFetch.STATUS_AVAILABLE:
+          console.log("BackgroundFetch is enabled");
+          break;
+      }
+    });
   };
 
   const handleBackPress = () => {
@@ -125,8 +376,27 @@ const App = () => {
     }, 1000); // Retry after 1 second
   };
 
-  const handleLoadSuccess = () => {
+  const handleLoadSuccess = (nativeEvent: any) => {
+    console.log("Handling load success:", nativeEvent);
     setHasLoadError(false);
+  };
+
+  const handleNavigationStateChange = (navState: any) => {
+    console.log("Handling navigation state change:", navState);
+    if (!webViewRef.current) return;
+    redirectToSafety(navState);
+    if (navState.url === sourceUrl) {
+      // Get cookies and user agent from the WebView
+      console.log("Injecting JavaScript to get cookies and user agent...");
+      webViewRef.current.injectJavaScript(
+        `(function() {
+          const userAgent = navigator.userAgent;
+          window.ReactNativeWebView.postMessage(JSON.stringify({ userAgent }));
+        })();
+        true;`
+      );
+      fetchLatestUnreadMessageIfPermitted(false, false);
+    }
   };
 
   const handleProcessTermination = () => {
@@ -140,6 +410,7 @@ const App = () => {
 
   useEffect(() => {
     fetchFiltersConfig();
+    initBackgroundFetch();
   }, []); // Run once on component mount
 
   useEffect(() => {
@@ -155,14 +426,14 @@ const App = () => {
         injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
-        onMessage={() => {}}
+        onMessage={handleMessage}
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={() => <View />}
         onError={() => {handleLoadError()}}
-        onLoad={() => {handleLoadSuccess()}}
+        onLoad={(syntheticEvent) => {handleLoadSuccess(syntheticEvent.nativeEvent)}}
         onLoadStart={(syntheticEvent) => {trackNavState(syntheticEvent.nativeEvent)}}
-        onNavigationStateChange={(navState) => {redirectToSafety(navState)}}
+        onNavigationStateChange={handleNavigationStateChange}
         onOpenWindow={(syntheticEvent) => {openLinkInWebView(syntheticEvent.nativeEvent)}}
         onContentProcessDidTerminate={handleProcessTermination}
         onRenderProcessGone={handleProcessTermination}
