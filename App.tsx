@@ -5,6 +5,7 @@ import BackgroundFetch from "react-native-background-fetch";
 import PushNotification from 'react-native-push-notification';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CookieManager from '@react-native-cookies/cookies';
+import axios from 'axios';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -180,25 +181,15 @@ const App = () => {
     return { cookies, userAgent };
   };
 
-  const makeHttpRequest = async (url: string, method: string, headers: any) => {
-    // Make HTTP request leveraging the XMLHttpRequest API and using promises
-    return new Promise<string>((resolve, reject) => {
-      const request = new XMLHttpRequest();
-      request.open(method, url);
-      Object.keys(headers).forEach(key => {
-        request.setRequestHeader(key, headers[key]);
-      });
-      request.onreadystatechange = () => {
-        if (request.readyState === XMLHttpRequest.DONE) {
-          if (request.status === 200) {
-            resolve(request.responseText);
-          } else {
-            reject(new Error(`HTTP request failed with status ${request.status}`));
-          }
-        }
-      };
-      request.send();
-    });
+  const makeHttpRequest = async (url: string, headers: any) => {
+    // Make HTTP request leveraging the Axios API
+    try {
+      const response = await axios.get(url, { headers });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to make HTTP request:", error);
+      throw error;
+    }
   };
 
   const fetchLatestUnreadMessage = async (maskFetch: boolean = false) => {
@@ -233,23 +224,16 @@ const App = () => {
     console.log("Fetching unread messages...");
     if (maskFetch) {
       console.log("Masking fetch...");
-      makeHttpRequest(sourceUrl, 'GET', headers); // Concurrently fetch the source URL to mask the private API call
+      makeHttpRequest(sourceUrl, headers); // Concurrently fetch the source URL to mask the private API call
     }
     try {
-      const response = await makeHttpRequest(`${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`, 'GET', headers);
-      console.log('Raw response:', response);
+      const responseData = await makeHttpRequest(
+        `${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`,
+        headers,
+      );
+      console.log('Response JSON:', responseData);
 
-      let data: any = null;
-      try {
-        // Set data to the parsed response JSON
-        data = JSON.parse(response);
-        console.log("Data:", data);
-      } catch (error) {
-        console.error("Failed to parse JSON:", error);
-        return {};
-      }
-
-      for (const thread of data.inbox.threads) {
+      for (const thread of responseData.inbox.threads) {
         if (!lastMessageTimestamp || thread.last_non_sender_item_at > parseInt(lastMessageTimestamp)) {
           const userName = thread.thread_title;
           // Get the first non-sender message in the thread
