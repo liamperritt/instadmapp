@@ -181,18 +181,96 @@ const App = () => {
     return { cookies, userAgent };
   };
 
+  const displayDMNotification = async () => {
+    console.log("Displaying local DM notification...");
+    const channelId = "instadms"
+
+    // Create a channel (required for Android)
+    await PushNotification.createChannel({
+      channelId: channelId, // (required)
+      channelName: 'Instagram direct messages', // (required)
+      channelDescription: 'Unread Instagram direct message notifications', // (optional) default: undefined.
+      playSound: false, // (optional) default: true
+    });
+
+    // Display a local notification
+    await PushNotification.localNotification({
+      id: 0,
+      channelId: channelId,
+      title: "Instagram",
+      message: "You have unread messages",
+      smallIcon: 'insta_dms_icon',
+      ignoreInForeground: true,
+      onlyAlertOnce: true,
+      invokeApp: true,
+      importance: 'high',
+    });
+  };
+
+  const displayReauthNotification = async () => {
+    console.log("Displaying local Reauth notification...");
+    const channelId = "reauth"
+
+    // Create a channel (required for Android)
+    await PushNotification.createChannel({
+      channelId: channelId, // (required)
+      channelName: 'Instagram session expiry', // (required)
+      channelDescription: 'Instagram reauthentication request notifications', // (optional) default: undefined.
+      playSound: false, // (optional) default: true
+    });
+
+    // Display a local notification
+    await PushNotification.localNotification({
+      id: 0,
+      channelId: channelId,
+      title: "Instagram",
+      message: "Your session has expired. Please open the app to continue receiving notifications.",
+      smallIcon: 'insta_dms_icon',
+      ignoreInForeground: true,
+      onlyAlertOnce: true,
+      invokeApp: true,
+      importance: 'high',
+    });
+  };
+
+  const displayDisconnectNotification = async () => {
+    console.log("Displaying local Disconnection notification...");
+    const channelId = "disconnect"
+
+    // Create a channel (required for Android)
+    await PushNotification.createChannel({
+      channelId: channelId, // (required)
+      channelName: 'Instagram background sync failure', // (required)
+      channelDescription: 'Instagram sync failure notifications', // (optional) default: undefined.
+      playSound: false, // (optional) default: true
+    });
+
+    // Display a local notification
+    await PushNotification.localNotification({
+      id: 0,
+      channelId: channelId,
+      title: "Instagram",
+      message: "Failed to sync latest messages. Please open the app to continue receiving notifications.",
+      smallIcon: 'insta_dms_icon',
+      ignoreInForeground: true,
+      onlyAlertOnce: true,
+      invokeApp: true,
+      importance: 'high',
+    });
+  };
+
   const makeHttpRequest = async (url: string, headers: any) => {
     // Make HTTP request leveraging the Axios API
     try {
       const response = await axios.get(url, { headers });
-      return response.data;
+      return response;
     } catch (error) {
       console.error("Failed to make HTTP request:", error);
       throw error;
     }
   };
 
-  const fetchLatestUnreadMessage = async (maskFetch: boolean = false) => {
+  const notifyOfUnreadMessage = async (backgroundFetch: boolean = false) => {
     console.log("Loading headers...");
     const {cookies, userAgent} = await loadHeaders();
     const lastMessageTimestamp = await AsyncStorage.getItem('lastMessageTimestamp');
@@ -222,37 +300,62 @@ const App = () => {
     };
 
     console.log("Fetching unread messages...");
-    if (maskFetch) {
+    if (backgroundFetch) {
       console.log("Masking fetch...");
       makeHttpRequest(sourceUrl, headers); // Concurrently fetch the source URL to mask the private API call
     }
     try {
-      const responseData = await makeHttpRequest(
+      const response = await makeHttpRequest(
         `${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`,
         headers,
       );
-      console.log('Response JSON:', responseData);
 
-      for (const thread of responseData.inbox.threads) {
+      await AsyncStorage.setItem('responseStatus', response.status.toString());
+      console.log("Saved response status:", response.status);
+
+      if (response.status === 401) {
+        console.log("Session expired, displaying reauth notification:", response.statusText);
+        if (!backgroundFetch) return;
+        await displayReauthNotification();
+        return;
+      } else if (response.status !== 200) {
+        console.error("Failed to fetch unread messages:", response.status, response.statusText);
+        if (!backgroundFetch) return;
+        displayDisconnectNotification();
+        return;
+      }
+
+      const data = response.data;
+      console.log('Response JSON:', data);
+
+      for (const thread of data.inbox.threads) {
         if (!lastMessageTimestamp || thread.last_non_sender_item_at > parseInt(lastMessageTimestamp)) {
-          const userName = thread.thread_title;
-          // Get the first non-sender message in the thread
-          const firstNonSenderMessage = thread.items.find((item: any) => !item.is_sent_by_viewer);
-          const messageText = firstNonSenderMessage?.text || `You have a new message from ${userName}`;
+          console.log("New message found!");
           // Save the last message timestamp
           await AsyncStorage.setItem('lastMessageTimestamp', thread.last_non_sender_item_at.toString());
-          console.log("New message found:", {userName, messageText});
-          return {userName, messageText};
+          if (!backgroundFetch) return;
+          await displayDMNotification();
+        } else {
+          console.log("No notification to display");
         }
       }
     } catch (error) {
       console.error("Failed to fetch unread messages:", error);
+      if (!backgroundFetch) return;
+      displayDisconnectNotification();
     }
     console.log("No new messages");
-    return {};
   };
 
-  const fetchLatestUnreadMessageIfPermitted = (maskFetch: boolean, displayNotification: boolean, callback: Function = () => {}) => {
+  const notifyOfUnreadMessageIfPermitted = async (backgroundFetch: boolean = false, callback: Function = () => {}) => {
+    if (backgroundFetch) {
+      // Check the previous fetch response status
+      const status = await AsyncStorage.getItem('responseStatus');
+      if (status && status !== '200') {
+        console.log("Previous fetch failed, skipping unread message check.", status);
+        return callback();
+      }
+    }
     // Only hit Instagram's internal API if the user has granted notification permission
     console.log("Checking push notification permissions...");
     PushNotification.checkPermissions(async (permissions: any) => {
@@ -261,47 +364,15 @@ const App = () => {
         return callback();
       }
       console.log("Push notification permissions granted");
-      const {userName, messageText} = await fetchLatestUnreadMessage(maskFetch);
-      if (!displayNotification) return callback();
-      if (userName && messageText) {
-        await displayLocalNotification();
-      } else {
-        console.log("No notification to display");
-      }
-    });
-    return callback();
-  };
-
-  const displayLocalNotification = async () => {
-    console.log("Displaying local notification...");
-    const channelId = "instagram"
-
-    // Create a channel (required for Android)
-    await PushNotification.createChannel({
-      channelId: channelId, // (required)
-      channelName: 'Instagram direct messages', // (required)
-      channelDescription: 'Unread Instagram direct message notifications', // (optional) default: undefined.
-      playSound: false, // (optional) default: true
-    });
-
-    // Display a local notification
-    await PushNotification.localNotification({
-      id: 0,
-      channelId: channelId,
-      title: "Instagram",
-      message: "You have unread messages",
-      smallIcon: 'insta_dms_icon',
-      ignoreInForeground: true,
-      onlyAlertOnce: true,
-      invokeApp: true,
-      importance: 'high',
+      await notifyOfUnreadMessage(backgroundFetch);
+      return callback();
     });
   };
 
   const initBackgroundFetch = async () => {
     console.log('[BackgroundFetch] Initialising...');
     const status: number = await BackgroundFetch.configure({
-      minimumFetchInterval: 15, // in minutes (15 is minimum allowed)
+      minimumFetchInterval: 60, // in minutes (15 is minimum allowed)
       // Android-specific options
       stopOnTerminate: false,
       startOnBoot: true,
@@ -309,7 +380,7 @@ const App = () => {
     }, async (taskId: string) => {
       console.log('[BackgroundFetch] taskId', taskId);
       // Perform task.
-      fetchLatestUnreadMessageIfPermitted(true, true, async () => {
+      notifyOfUnreadMessageIfPermitted(true, async () => {
         BackgroundFetch.finish(taskId);
         console.log('[BackgroundFetch] Task finished:', taskId);
       });
@@ -379,7 +450,8 @@ const App = () => {
         })();
         true;`
       );
-      fetchLatestUnreadMessageIfPermitted(false, false);
+      console.log("Fetching unread messages...");
+      notifyOfUnreadMessageIfPermitted(false);
     }
   };
 
