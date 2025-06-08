@@ -11,15 +11,10 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.2",
-    "@react-native-community/push-notification-ios": "^1.11.0",
-    "@react-native-cookies/cookies": "^6.2.1",
     "axios": "^1.8.4",
     "expo": "^52.0.28",
     "react": "18.3.1",
     "react-native": "0.77.0",
-    "react-native-app-badge": "^0.1.5",
-    "react-native-background-fetch": "^4.2.7",
-    "react-native-push-notification": "^8.1.1",
     "react-native-webview": "^13.13.2"
   },
   "devDependencies": {

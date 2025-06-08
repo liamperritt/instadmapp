@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Platform, Linking } from "react-native";
+import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Linking } from "react-native";
 import WebView from "react-native-webview";
-import BackgroundFetch from "react-native-background-fetch";
-import PushNotification from 'react-native-push-notification';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import CookieManager from '@react-native-cookies/cookies';
-import axios from 'axios';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -36,26 +31,12 @@ const DEFAULT_FILTERS = [
   ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
 ];
 
-// Push notifications setup
-PushNotification.configure({
-  // onNotification is called when a notification is to be emitted
-  onNotification: (notification: any) => console.log(notification),
-  // Permissions to register for iOS
-  permissions: {
-    alert: true,
-    badge: true,
-    sound: true,
-  },
-  popInitialNotification: true,
-  requestPermissions: false, // Platform.OS === 'ios', // Uncomment this line to request permissions on iOS
-});
-
 const App = () => {
   const webViewRef = useRef<WebView>(null);
-  const baseUrlShort = `instagram.com`;
+  const webAppName = "instagram";
+  const baseUrlShort = `${webAppName}.com`;
   const baseUrl = `https://www.${baseUrlShort}/`;
   const sourceUrl = `${baseUrl}direct/inbox/`;
-  const apiUrl = `https://i.instagram.com/api/v1/direct_v2/inbox/`;
   const redirectFromUrls = [
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
@@ -65,7 +46,8 @@ const App = () => {
     "https://www.facebook.com/instagram/",
     "https://www.fbsbx.com/",
   ]
-  const configUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/instagram/";
+  const configBaseUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/";
+  const configUrl = `${configBaseUrl}${webAppName}/`;
 
   const [currentUrl, setCurrentUrl] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
@@ -140,281 +122,6 @@ const App = () => {
     }
   };
 
-  const saveHeaders = async (cookies: string, userAgent: string) => {
-    if (!webViewRef.current) return;
-
-    console.log("Saving headers to storage");
-    try {
-      await AsyncStorage.setItem('cookies', JSON.stringify(cookies));
-      await AsyncStorage.setItem('userAgent', JSON.stringify(userAgent));
-    } catch (error) {
-      console.error("Failed to save headers:", error);
-    }
-  };
-
-  const getCookies = async () => {
-    console.log("Getting cookies via CookieManager...");
-    const result = await CookieManager.get(baseUrl, true);
-    const resultString = Object.entries(result).map(([key, value]) => `${key}=${value.value}`).join('; ');
-    console.log("Retrieved cookies via CookieManager:", resultString);
-    return resultString;
-  };
-
-  const handleMessage = async (event: any) => {
-    console.log("Message received from WebView:", event.nativeEvent.data);
-    let { userAgent } = JSON.parse(event.nativeEvent.data);
-    if (!userAgent) {
-      console.error("No user agent found");
-      return;
-    }
-    console.log("User-Agent:", userAgent);
-    const cookies = await getCookies();
-    console.log("Cookies:", cookies);
-    saveHeaders(cookies, userAgent);
-  };
-
-  const loadHeaders = async () => {
-    console.log("Loading headers from storage");
-    const cookies = await AsyncStorage.getItem('cookies');
-    console.log("Cookies loaded:", cookies);
-    const userAgent = await AsyncStorage.getItem('userAgent');
-    console.log("User agent loaded:", userAgent);
-    console.log("Headers loaded:", {cookies, userAgent});
-    if (!cookies || !userAgent) {
-      console.error("No cookies or user agent found");
-      throw new Error("No cookies or user agent found");
-    }
-    return { cookies, userAgent };
-  };
-
-  const displayDMNotification = async () => {
-    console.log("Displaying local DM notification...");
-    const channelId = "instadms"
-
-    // Create a channel (required for Android)
-    await PushNotification.createChannel({
-      channelId: channelId, // (required)
-      channelName: 'Instagram direct messages', // (required)
-      channelDescription: 'Unread Instagram direct message notifications', // (optional) default: undefined.
-      playSound: false, // (optional) default: true
-    });
-
-    // Display a local notification
-    await PushNotification.localNotification({
-      id: 0,
-      channelId: channelId,
-      title: "Instagram",
-      message: "You have unread messages",
-      smallIcon: 'insta_dms_icon',
-      ignoreInForeground: true,
-      onlyAlertOnce: true,
-      invokeApp: true,
-      importance: 'high',
-    });
-  };
-
-  const displayReauthNotification = async () => {
-    console.log("Displaying local Reauth notification...");
-    const channelId = "reauth"
-
-    // Create a channel (required for Android)
-    await PushNotification.createChannel({
-      channelId: channelId, // (required)
-      channelName: 'Instagram session expiry', // (required)
-      channelDescription: 'Instagram reauthentication request notifications', // (optional) default: undefined.
-      playSound: false, // (optional) default: true
-    });
-
-    // Display a local notification
-    await PushNotification.localNotification({
-      id: 0,
-      channelId: channelId,
-      title: "Instagram",
-      message: "Your session has expired. Please open the app to continue receiving notifications.",
-      smallIcon: 'insta_dms_icon',
-      ignoreInForeground: true,
-      onlyAlertOnce: true,
-      invokeApp: true,
-      importance: 'high',
-    });
-  };
-
-  const displayDisconnectNotification = async () => {
-    console.log("Displaying local Disconnection notification...");
-    const channelId = "disconnect"
-
-    // Create a channel (required for Android)
-    await PushNotification.createChannel({
-      channelId: channelId, // (required)
-      channelName: 'Instagram background sync failure', // (required)
-      channelDescription: 'Instagram sync failure notifications', // (optional) default: undefined.
-      playSound: false, // (optional) default: true
-    });
-
-    // Display a local notification
-    await PushNotification.localNotification({
-      id: 0,
-      channelId: channelId,
-      title: "Instagram",
-      message: "Failed to sync latest messages. Please open the app to continue receiving notifications.",
-      smallIcon: 'insta_dms_icon',
-      ignoreInForeground: true,
-      onlyAlertOnce: true,
-      invokeApp: true,
-      importance: 'high',
-    });
-  };
-
-  const makeHttpRequest = async (url: string, headers: any) => {
-    // Make HTTP request leveraging the Axios API
-    try {
-      const response = await axios.get(url, { headers });
-      return response;
-    } catch (error) {
-      console.error("Failed to make HTTP request:", error);
-      throw error;
-    }
-  };
-
-  const notifyOfUnreadMessage = async (backgroundFetch: boolean = false) => {
-    console.log("Loading headers...");
-    const {cookies, userAgent} = await loadHeaders();
-    const lastMessageTimestamp = await AsyncStorage.getItem('lastMessageTimestamp');
-
-    const match = cookies.match(/csrftoken=([^;]+)/);
-    if (!match) {
-      console.error("No csrftoken found in cookies");
-      return {};
-    }
-    const csrftoken = match[1];
-
-    const headers = {
-      "x-ig-app-id": "936619743392459",
-      "User-Agent": userAgent,
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Accept-Encoding": "gzip, deflate, br",
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Origin": "https://i.instagram.com",
-      "Referer": sourceUrl,
-      "Priority": "u=1, i",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "same-origin",
-      "X-CSRFToken": csrftoken,
-      'Cookie': cookies,
-    };
-
-    console.log("Fetching unread messages...");
-    if (backgroundFetch) {
-      console.log("Masking fetch...");
-      makeHttpRequest(sourceUrl, headers); // Concurrently fetch the source URL to mask the private API call
-    }
-    try {
-      const response = await makeHttpRequest(
-        `${apiUrl}?thread_message_limit=10&persistentBadging=true&limit=10&visual_message_return_type=unseen`,
-        headers,
-      );
-
-      await AsyncStorage.setItem('responseStatus', response.status.toString());
-      console.log("Saved response status:", response.status);
-
-      if (response.status === 401) {
-        console.log("Session expired, displaying reauth notification:", response.statusText);
-        if (!backgroundFetch) return;
-        await displayReauthNotification();
-        return;
-      } else if (response.status !== 200) {
-        console.error("Failed to fetch unread messages:", response.status, response.statusText);
-        if (!backgroundFetch) return;
-        displayDisconnectNotification();
-        return;
-      }
-
-      const data = response.data;
-      console.log('Response JSON:', data);
-
-      for (const thread of data.inbox.threads) {
-        if (!lastMessageTimestamp || thread.last_non_sender_item_at > parseInt(lastMessageTimestamp)) {
-          console.log("New message found!");
-          // Save the last message timestamp
-          await AsyncStorage.setItem('lastMessageTimestamp', thread.last_non_sender_item_at.toString());
-          if (!backgroundFetch) return;
-          await displayDMNotification();
-        } else {
-          console.log("No notification to display");
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch unread messages:", error);
-      if (!backgroundFetch) return;
-      displayDisconnectNotification();
-    }
-    console.log("No new messages");
-  };
-
-  const notifyOfUnreadMessageIfPermitted = async (backgroundFetch: boolean = false, callback: Function = () => {}) => {
-    if (backgroundFetch) {
-      // Check the previous fetch response status
-      const status = await AsyncStorage.getItem('responseStatus');
-      if (status && status !== '200') {
-        console.log("Previous fetch failed, skipping unread message check.", status);
-        return callback();
-      }
-    }
-    // Only hit Instagram's internal API if the user has granted notification permission
-    console.log("Checking push notification permissions...");
-    PushNotification.checkPermissions(async (permissions: any) => {
-      if (true) { // if (!permissions.alert) { // TODO: Uncomment these lines once we're ready to enable notifications
-        // console.log("Push notification permissions denied");
-        return callback();
-      }
-      console.log("Push notification permissions granted");
-      await notifyOfUnreadMessage(backgroundFetch);
-      return callback();
-    });
-  };
-
-  const initBackgroundFetch = async () => {
-    console.log('[BackgroundFetch] Initialising...');
-    const status: number = await BackgroundFetch.configure({
-      minimumFetchInterval: 60, // in minutes (15 is minimum allowed)
-      // Android-specific options
-      stopOnTerminate: false,
-      startOnBoot: true,
-      requiredNetworkType: BackgroundFetch.NETWORK_TYPE_ANY,
-    }, async (taskId: string) => {
-      console.log('[BackgroundFetch] taskId', taskId);
-      // Perform task.
-      notifyOfUnreadMessageIfPermitted(true, async () => {
-        BackgroundFetch.finish(taskId);
-        console.log('[BackgroundFetch] Task finished:', taskId);
-      });
-    }, (taskId: string) => {
-      // Oh No!  Our task took too long to complete and the OS has signalled
-      // that this task must be finished immediately.
-      console.log('[Fetch] TIMEOUT taskId:', taskId);
-      BackgroundFetch.finish(taskId);
-      console.log('[BackgroundFetch] Task timeout finished:', taskId);
-    });
-    console.log('[BackgroundFetch] configure status:', status);
-
-    // Query the current BackgroundFetch status.
-    BackgroundFetch.status((status) => {
-      switch (status) {
-        case BackgroundFetch.STATUS_RESTRICTED:
-          console.log("BackgroundFetch restricted");
-          break;
-        case BackgroundFetch.STATUS_DENIED:
-          console.log("BackgroundFetch denied");
-          break;
-        case BackgroundFetch.STATUS_AVAILABLE:
-          console.log("BackgroundFetch is enabled");
-          break;
-      }
-    });
-  };
-
   const handleBackPress = () => {
     if (!webViewRef.current) return false;
     if (canGoBack) {
@@ -456,19 +163,6 @@ const App = () => {
     console.log("Handling navigation state change:", navState);
     if (!webViewRef.current) return;
     redirectToSafety(navState);
-    if (navState.url === sourceUrl) {
-      // TODO: Uncomment to get cookies and user agent from the WebView
-      // console.log("Injecting JavaScript to get cookies and user agent...");
-      // webViewRef.current.injectJavaScript(
-      //   `(function() {
-      //     const userAgent = navigator.userAgent;
-      //     window.ReactNativeWebView.postMessage(JSON.stringify({ userAgent }));
-      //   })();
-      //   true;`
-      // );
-      // console.log("Fetching unread messages...");
-      // notifyOfUnreadMessageIfPermitted(false);
-    }
   };
 
   const handleProcessTermination = () => {
@@ -482,7 +176,6 @@ const App = () => {
 
   useEffect(() => {
     fetchFiltersConfig();
-    initBackgroundFetch();
   }, []); // Run once on component mount
 
   useEffect(() => {
@@ -498,7 +191,7 @@ const App = () => {
         injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
-        onMessage={handleMessage}
+        onMessage={() => {}}
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={() => <View />}
