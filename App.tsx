@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Linking } from "react-native";
+import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Linking, TouchableOpacity, Image, Modal, Pressable } from "react-native";
 import WebView from "react-native-webview";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -31,12 +32,38 @@ const DEFAULT_FILTERS = [
   ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
 ];
 
+const APP_GRID = [
+  {
+    name: "Instagram",
+    icon: require("./assets/instagram.png"), // Add your icon images to assets/
+    active: true,
+  },
+  {
+    name: "Facebook",
+    icon: require("./assets/app.png"),
+    active: false,
+  },
+  {
+    name: "X",
+    icon: require("./assets/app.png"),
+    active: false,
+  },
+  {
+    name: "YouTube",
+    icon: require("./assets/app.png"),
+    active: false,
+  },
+];
+const GRID_ROWS = 3;
+const GRID_COLS = 2;
+
 const App = () => {
   const webViewRef = useRef<WebView>(null);
   const webAppName = "instagram";
   const baseUrlShort = `${webAppName}.com`;
   const baseUrl = `https://www.${baseUrlShort}/`;
   const sourceUrl = `${baseUrl}direct/inbox/`;
+  const exitUrl = `${baseUrl}?flo=true`;
   const redirectFromUrls = [
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
@@ -45,10 +72,12 @@ const App = () => {
   const openableExternalUrls = [
     "https://www.facebook.com/instagram/",
     "https://www.fbsbx.com/",
-  ]
+  ];
   const configBaseUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/";
   const configUrl = `${configBaseUrl}${webAppName}/`;
 
+  const [showHome, setShowHome] = useState(false);
+  const [infoVisible, setInfoVisible] = useState(true);
   const [currentUrl, setCurrentUrl] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
   const [wentBack, setWentBack] = useState(false);
@@ -73,6 +102,43 @@ const App = () => {
     }, 100);
   `;
 
+  const saveHomeScreenState = async (state: boolean) => {
+    console.log("Saving home screen state:", state);
+    setShowHome(state);
+    try {
+      await AsyncStorage.setItem("showHome", state ? "true" : "false");
+    }
+    catch (error) {
+      console.error("Failed to save showHome state:", error);
+    }
+  };
+
+  const loadHomeScreenState = async () => {
+    console.log("Loading home screen state...");
+    try {
+      const value = await AsyncStorage.getItem("showHome");
+      if (value !== null) {
+        setShowHome(value === "true");
+        return showHome;
+      }
+    } catch (error) {
+      console.error("Failed to load showHome state:", error);
+    }
+    setShowHome(false);
+    return showHome;
+  };
+
+  const loadInfoVisible = async () => {
+    try {
+      const value = await AsyncStorage.getItem("infoVisible");
+      if (value !== null) {
+        setInfoVisible(value === "true");
+      }
+    } catch (error) {
+      console.error("Failed to load infoVisible state:", error);
+    }
+  };
+
   const fetchFiltersConfig = async () => {
     console.log("Fetching filters config...");
     try {
@@ -92,7 +158,6 @@ const App = () => {
     if (wentBack) {
       setWentBack(false);
     }
-    if (!webViewRef.current) return;
   };
 
   const redirectToUrl = (url: string) => {
@@ -147,6 +212,16 @@ const App = () => {
   const handleLoadSuccess = (nativeEvent: any) => {
     console.log("Handling load success:", nativeEvent);
     setHasLoadError(false);
+    if (nativeEvent.url === sourceUrl) {
+      // if we are on the source URL, that means we have logged in
+      console.log("Logged in, hiding the home screen");
+      saveHomeScreenState(false);
+    }
+    else if (nativeEvent.url === exitUrl) {
+      // if we are on the exit URL, that means we have logged out
+      console.log("Logged out, showing the home screen");
+      saveHomeScreenState(true);
+    }
   };
 
   const handleShouldStartLoadWithRequest = (request: any) => {
@@ -175,13 +250,101 @@ const App = () => {
   };
 
   useEffect(() => {
+    loadHomeScreenState();
+    loadInfoVisible();
     fetchFiltersConfig();
   }, []); // Run once on component mount
+
+  useEffect(() => {
+    AsyncStorage.setItem("infoVisible", infoVisible ? "true" : "false").catch((error) => {
+      console.error("Failed to save infoVisible state:", error);
+    });
+  }, [infoVisible]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
     return () => backHandler.remove(); // Cleanup
   }, [canGoBack]); // Re-run the effect when canGoBack changes
+
+  // Only mount WebView when not on home
+  if (showHome) {
+    // Fill grid with 4 icons and 5 empty spots
+    const gridItems = [];
+    let appIdx = 0;
+    for (let i = 0; i < GRID_ROWS * GRID_COLS; i++) {
+      if (appIdx < APP_GRID.length) {
+        const app = APP_GRID[appIdx];
+        gridItems.push(
+          <TouchableOpacity
+            key={app.name}
+            style={[
+              styles.appIconContainer,
+              !app.active && styles.appIconInactive,
+            ]}
+            activeOpacity={app.active ? 0.7 : 1}
+            onPress={() => {
+              if (app.active) setShowHome(false);
+            }}
+            disabled={!app.active}
+          >
+            <Image
+              source={app.icon}
+              style={[
+                styles.appIcon,
+                !app.active && styles.appIconImageInactive,
+              ]}
+              resizeMode="contain"
+            />
+            <Text
+              style={[
+                styles.appLabel,
+                !app.active && styles.appLabelInactive,
+              ]}
+            >
+              {app.name}
+            </Text>
+          </TouchableOpacity>
+        );
+        appIdx++;
+      } else {
+        // Empty grid spot
+        gridItems.push(<View key={`empty-${i}`} style={styles.gridContainer} />);
+      }
+    }
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.titleBar}>
+          <Text style={styles.titleText}>OpenSocials</Text>
+        </View>
+        <View style={styles.gridContainer}>
+          {gridItems}
+        </View>
+        <Modal
+          visible={infoVisible}
+          transparent
+          animationType="fade"
+        >
+          <View style={styles.infoModalOverlay}>
+            <View style={styles.infoModal}>
+              <Text style={styles.infoTitle}>Welcome!</Text>
+              <Text style={styles.infoText}>
+                Tap an icon to open a social web app.{"\n\n"}
+                You can return to this home page at any time by logging out of the web app.
+              </Text>
+              <Pressable
+                style={styles.infoCloseButton}
+                onPress={() => setInfoVisible(false)}
+                accessibilityLabel="Close info popup"
+              >
+                <Text style={styles.infoCloseButtonText}>Understood</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -219,6 +382,118 @@ const App = () => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: 'black',
+  },
+  titleBar: {
+    height: 56,
+    backgroundColor: '#181818',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    borderBottomColor: '#222',
+    borderBottomWidth: 1,
+  },
+  titleText: {
+    color: 'white',
+    fontSize: 22,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'left',
+    paddingLeft: 16,
+    paddingRight: 56, // Space for back button
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    height: '100%',
+    width: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  backButtonText: {
+    color: 'white',
+    fontSize: 28,
+    fontWeight: '400',
+  },
+  gridContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'black',
+  },
+  appIconContainer: {
+    width: '30%',
+    aspectRatio: 1,
+    margin: '1.66%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+    backgroundColor: '#232323',
+  },
+  appIcon: {
+    width: 48,
+    height: 48,
+    marginBottom: 8,
+  },
+  appLabel: {
+    color: 'white',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  appIconInactive: {
+    opacity: 0.4,
+  },
+  appIconImageInactive: {
+    tintColor: '#888',
+  },
+  appLabelInactive: {
+    color: '#888',
+  },
+  infoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoModal: {
+    backgroundColor: '#232323',
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 32,
+    alignItems: 'center',
+    maxWidth: 340,
+  },
+  infoTitle: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  infoText: {
+    color: '#ccc',
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  infoCloseButton: {
+    backgroundColor: '#444',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    alignSelf: 'center',
+  },
+  infoCloseButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  webview: {
     flex: 1,
     backgroundColor: 'black',
   },
