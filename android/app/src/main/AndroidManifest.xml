@@ -2,7 +2,6 @@
   xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -27,23 +26,5 @@
           <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
-
-      <!-- Add the BackgroundFetch Headless Task Service -->
-      <service
-        android:name="com.transistorsoft.tsbackgroundfetch.FetchJobService"
-        android:permission="android.permission.BIND_JOB_SERVICE"
-        android:exported="true" />
-
-      <!-- Ensure the app restarts BackgroundFetch after device reboot -->
-      <receiver
-        android:name="com.transistorsoft.tsbackgroundfetch.BootReceiver"
-        android:enabled="true"
-        android:exported="true"
-        tools:replace="android:exported">
-        <intent-filter>
-          <action android:name="android.intent.action.BOOT_COMPLETED" />
-          <action android:name="android.intent.action.REBOOT" />
-        </intent-filter>
-      </receiver>
     </application>
 </manifest>
