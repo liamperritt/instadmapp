@@ -330,7 +330,7 @@ const App = () => {
               <Text style={styles.infoTitle}>Welcome!</Text>
               <Text style={styles.infoText}>
                 Tap an icon to open a social web app.{"\n\n"}
-                You can return to this home page at any time by logging out of the web app.
+                You can return to the home page at any time by logging out of the web app.
               </Text>
               <Pressable
                 style={styles.infoCloseButton}
