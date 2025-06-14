@@ -118,7 +118,7 @@ const App = () => {
 
   const checkForLoggedInAppSession = async () => {
     try {
-      const cookies = await CookieManager.getAll(true);
+      const cookies = await CookieManager.get(baseUrl, true);
       console.log("Checking Instagram login state with cookies:", cookies);
       // Check if the required cookies are present
       const isLoggedIn = webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
@@ -127,8 +127,7 @@ const App = () => {
       setLoggedIn(isLoggedIn);
     } catch (error) {
       console.error("Failed to check Instagram login state:", error);
-      setLoggedIn(false); // Fallback to home screen on error
-      setClosedHome(false);
+      setLoggedIn(false);
     }
   };
 
