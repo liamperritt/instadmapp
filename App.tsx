@@ -31,7 +31,7 @@ const DEFAULT_FILTERS = [
   ".x1n327nk.xixxii4.x1o0tod.xtijo5x", // New posts popup
   ".x67bb7w.x13vifvy.x10l6tqk.xm80bdy.xu96u03", // Notifications popup
   ".x1r695p9.xd9ej83.x78zum5", // Notifications icon
-  ".x13vifvy.x10l6tqk.xm80bdy.xu96u03", // Following & Favourites dropdown
+  ".x1xmf6yo.xh8yej3.x1n2onr6.x10wlt62.x6ikm8r.x5yr21d.xdt5ytf.x78zum5.x1wp8tw6.x1ihp6rs.xr2y4jy.x1whfx0g.x1i5p2am.xgf5ljw", // Following & Favourites dropdown
   ".x127lhb5.xxkxylk", // Following & Favourites dropdown indicator
   // Explore
   ".x1ugxg0y.x7flfwp.x1e49onv.x16mfq2j.x103t36t.xmjrnx3.xhae0no.x19b80pe.xh8yej3.x1ykew4q.x1gryazu.x4n8cb0.xkrivgy.xdj266r.x1iyjqo2.xdt5ytf.x78zum5", // Explore
