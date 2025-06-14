@@ -70,7 +70,6 @@ const App = () => {
   const baseUrlShort = `${webAppName}.com`;
   const baseUrl = `https://www.${baseUrlShort}/`;
   const sourceUrl = `${baseUrl}direct/inbox/`;
-  const logoutUrl = `${baseUrl}?flo=true`;
   const redirectFromUrls = [
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
@@ -87,8 +86,8 @@ const App = () => {
   const configBaseUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/";
   const configUrl = `${configBaseUrl}${webAppName}/`;
 
+  const [loggingIn, setLoggingIn] = useState(false);
   const [loggedIn, setLoggedIn] = useState(true);
-  const [closedHome, setClosedHome] = useState(false);
   const [infoVisible, setInfoVisible] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [showNotificationsInstructions, setShowNotificationsInstructions] = useState(false);
@@ -230,7 +229,6 @@ const App = () => {
   const handleLoadSuccess = (nativeEvent: any) => {
     console.log("Handling load success:", nativeEvent);
     setHasLoadError(false);
-    checkForLoggedInAppSession();
   };
 
   const handleShouldStartLoadWithRequest = (request: any) => {
@@ -247,6 +245,12 @@ const App = () => {
     console.log("Handling navigation state change:", navState);
     if (!webViewRef.current) return;
     redirectToSafety(navState);
+
+    // Check if we are logged in
+    checkForLoggedInAppSession();
+    if (loggingIn && navState.url === sourceUrl) {
+      setLoggingIn(false); // Reset logging in state
+    }
   };
 
   const handleProcessTermination = () => {
@@ -269,7 +273,7 @@ const App = () => {
   }, [canGoBack]); // Re-run the effect when canGoBack changes
 
   // Only mount WebView when not on home
-  if (!loggedIn && !closedHome) {
+  if (!loggedIn && !loggingIn) {
     // Fill grid with 4 icons and 5 empty spots
     const gridItems = [];
     let appIdx = 0;
@@ -285,7 +289,7 @@ const App = () => {
             ]}
             activeOpacity={app.active ? 0.7 : 1}
             onPress={() => {
-              if (app.active) setClosedHome(true);
+              if (app.active) setLoggingIn(true);
             }}
             disabled={!app.active}
           >
