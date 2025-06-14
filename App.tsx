@@ -1,7 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Linking, TouchableOpacity, Image, Modal, Pressable } from "react-native";
+import { View, SafeAreaView, ActivityIndicator, StyleSheet, BackHandler, Text, Platform, Linking, TouchableOpacity, Image, Modal, Pressable, ScrollView } from "react-native";
 import WebView from "react-native-webview";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CookieManager from '@react-native-cookies/cookies';
+
+const Hyperlink = ({ url, children }: { url: string; children: React.ReactNode }) => (
+  <Text style={styles.hyperlink} onPress={() => Linking.openURL(url)}>
+    {children}
+  </Text>
+);
 
 const DEFAULT_FILTERS = [
   // DMs
@@ -21,10 +28,10 @@ const DEFAULT_FILTERS = [
   ".x1jfgfrl.xysbk4d.x1rlzn12.x1xdureb.xc3tme8", // Account insights
   // Feed
   ".xh8yej3.xl56j7k.x1q0g3np.x78zum5.x1qjc9v5", // Feed & Stories
-  ".xa3vuyk.x1tukju.x4afe7t.xa8t5ci.x1d5wrs8.xfo81ep.x14atkfc.xuxw1ft.x87ps6o.x5ftkge.xlyipyv.x2b8uid.x10wlt62.x6ikm8r.x12uuly6.xwhw2v2.x1lliihq.x1ypdohk.x5n08af.x1yx36r3.xm0m39n.x1qhh985.xcfux6l.x972fbf.x4y8mfe.x1i7howy.x3jqge.x1ke7ulo.x7r02ix.xjyslct.x1lugfcp", // New posts popup
+  ".x1n327nk.xixxii4.x1o0tod.xtijo5x", // New posts popup
   ".x67bb7w.x13vifvy.x10l6tqk.xm80bdy.xu96u03", // Notifications popup
   ".x1r695p9.xd9ej83.x78zum5", // Notifications icon
-  ".x1xmf6yo.xh8yej3.x1n2onr6.x10wlt62.x6ikm8r.x5yr21d.xdt5ytf.x78zum5.x1wp8tw6.x1o6z2jb.x1i1ezom.x1otrzb0.xhk9q7s.xgf5ljw", // Following & Favourites dropdown
+  ".x13vifvy.x10l6tqk.xm80bdy.xu96u03", // Following & Favourites dropdown
   ".x127lhb5.xxkxylk", // Following & Favourites dropdown indicator
   // Explore
   ".x1ugxg0y.x7flfwp.x1e49onv.x16mfq2j.x103t36t.xmjrnx3.xhae0no.x19b80pe.xh8yej3.x1ykew4q.x1gryazu.x4n8cb0.xkrivgy.xdj266r.x1iyjqo2.xdt5ytf.x78zum5", // Explore
@@ -63,7 +70,7 @@ const App = () => {
   const baseUrlShort = `${webAppName}.com`;
   const baseUrl = `https://www.${baseUrlShort}/`;
   const sourceUrl = `${baseUrl}direct/inbox/`;
-  const exitUrl = `${baseUrl}?flo=true`;
+  const logoutUrl = `${baseUrl}?flo=true`;
   const redirectFromUrls = [
     `${baseUrl}explore/`,
     `${baseUrl}reels/`,
@@ -73,11 +80,18 @@ const App = () => {
     "https://www.facebook.com/instagram/",
     "https://www.fbsbx.com/",
   ];
+  const webAppSessionCookies = [
+    "ds_user_id",
+    "sessionid",
+  ]
   const configBaseUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/";
   const configUrl = `${configBaseUrl}${webAppName}/`;
 
-  const [showHome, setShowHome] = useState(false);
-  const [infoVisible, setInfoVisible] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(true);
+  const [closedHome, setClosedHome] = useState(false);
+  const [infoVisible, setInfoVisible] = useState(false);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [showNotificationsInstructions, setShowNotificationsInstructions] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
   const [wentBack, setWentBack] = useState(false);
@@ -102,40 +116,45 @@ const App = () => {
     }, 100);
   `;
 
-  const saveHomeScreenState = async (state: boolean) => {
-    console.log("Saving home screen state:", state);
-    setShowHome(state);
+  const checkForLoggedInAppSession = async () => {
     try {
-      await AsyncStorage.setItem("showHome", state ? "true" : "false");
-    }
-    catch (error) {
-      console.error("Failed to save showHome state:", error);
-    }
-  };
-
-  const loadHomeScreenState = async () => {
-    console.log("Loading home screen state...");
-    try {
-      const value = await AsyncStorage.getItem("showHome");
-      if (value !== null) {
-        setShowHome(value === "true");
-        return showHome;
-      }
+      const cookies = await CookieManager.getAll(true);
+      console.log("Checking Instagram login state with cookies:", cookies);
+      // Check if the required cookies are present
+      const isLoggedIn = webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
+      console.log("Logged in state:", isLoggedIn);
+      // Update the home screen state based on login status
+      setLoggedIn(isLoggedIn);
     } catch (error) {
-      console.error("Failed to load showHome state:", error);
+      console.error("Failed to check Instagram login state:", error);
+      setLoggedIn(false); // Fallback to home screen on error
+      setClosedHome(false);
     }
-    setShowHome(false);
-    return showHome;
   };
 
   const loadInfoVisible = async () => {
+    console.log("Loading infoVisible state from AsyncStorage...");
     try {
       const value = await AsyncStorage.getItem("infoVisible");
       if (value !== null) {
+        console.log("infoVisible state loaded:", value);
         setInfoVisible(value === "true");
+        return;
       }
     } catch (error) {
       console.error("Failed to load infoVisible state:", error);
+    }
+    // If no value is found, default to true
+    console.log("No infoVisible state found, defaulting to true");
+    setInfoVisible(true);
+  };
+
+  const saveInfoVisible = async (visible: boolean) => {
+    try {
+      await AsyncStorage.setItem("infoVisible", visible ? "true" : "false");
+      setInfoVisible(visible);
+    } catch (error) {
+      console.error("Failed to save infoVisible state:", error);
     }
   };
 
@@ -212,16 +231,7 @@ const App = () => {
   const handleLoadSuccess = (nativeEvent: any) => {
     console.log("Handling load success:", nativeEvent);
     setHasLoadError(false);
-    if (nativeEvent.url === sourceUrl) {
-      // if we are on the source URL, that means we have logged in
-      console.log("Logged in, hiding the home screen");
-      saveHomeScreenState(false);
-    }
-    else if (nativeEvent.url === exitUrl) {
-      // if we are on the exit URL, that means we have logged out
-      console.log("Logged out, showing the home screen");
-      saveHomeScreenState(true);
-    }
+    checkForLoggedInAppSession();
   };
 
   const handleShouldStartLoadWithRequest = (request: any) => {
@@ -250,16 +260,9 @@ const App = () => {
   };
 
   useEffect(() => {
-    loadHomeScreenState();
     loadInfoVisible();
     fetchFiltersConfig();
   }, []); // Run once on component mount
-
-  useEffect(() => {
-    AsyncStorage.setItem("infoVisible", infoVisible ? "true" : "false").catch((error) => {
-      console.error("Failed to save infoVisible state:", error);
-    });
-  }, [infoVisible]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
@@ -267,7 +270,7 @@ const App = () => {
   }, [canGoBack]); // Re-run the effect when canGoBack changes
 
   // Only mount WebView when not on home
-  if (showHome) {
+  if (!loggedIn && !closedHome) {
     // Fill grid with 4 icons and 5 empty spots
     const gridItems = [];
     let appIdx = 0;
@@ -283,7 +286,7 @@ const App = () => {
             ]}
             activeOpacity={app.active ? 0.7 : 1}
             onPress={() => {
-              if (app.active) setShowHome(false);
+              if (app.active) setClosedHome(true);
             }}
             disabled={!app.active}
           >
@@ -312,10 +315,75 @@ const App = () => {
       }
     }
 
+    const notificationsInstructions = (
+      <ScrollView contentContainerStyle={styles.notificationsContainer}>
+        <Text style={styles.notificationsTitle}>Notifications</Text>
+        <Text style={styles.notificationsText}>
+          To ensure you get notifications from your social apps:
+        </Text>
+        {Platform.OS === "ios" ? (
+          <Text style={styles.notificationsText}>
+            1. Make sure to keep the official mobile app (e.g. Instagram) installed on your device with push notifications enabled for new messages or replies.{"\n\n"}
+            2. Open the built-in <Hyperlink url="https://apps.apple.com/us/app/shortcuts/id915249334">Shortcuts</Hyperlink> iOS app on your device and navigate to the <Text style={{fontWeight: 'bold'}}>"Automation"</Text> section.{"\n\n"}
+            3. Tap the + button to create a new <Text style={{fontWeight: 'bold'}}>"Personal Automation"</Text>.{"\n\n"}
+            4. Select <Text style={{fontWeight: 'bold'}}>"App"</Text> as the trigger, then choose the official app (e.g. Instagram) and set it to trigger when the app <Text style={{fontWeight: 'bold'}}>"Is Opened"</Text>.{"\n\n"}
+            5. Add an <Text style={{fontWeight: 'bold'}}>"Open App"</Text> action and select the <Text style={{fontWeight: 'bold'}}>OpenSocials</Text> app.{"\n\n"}
+            6. Save the automation and ensure it is enabled.
+          </Text>
+        ) : (
+          <Text style={styles.notificationsText}>
+            1. Make sure to keep the official mobile app (e.g. Instagram) installed on your device with push notifications enabled for new messages or replies.{"\n\n"}
+            2. On a Samsung device, open the built-in <Hyperlink url="https://galaxystore.samsung.com/prepost/000006561093">Modes and Routines</Hyperlink> app (or use a third-party automation app such as <Hyperlink url="https://play.google.com/store/apps/details?id=net.dinglisch.android.taskerm">Tasker</Hyperlink> instead).{"\n\n"}
+            3. Navigate to the <Text style={{fontWeight: 'bold'}}>"Routines"</Text> section and tap the + button to create a new routine.{"\n\n"}
+            4. Select <Text style={{fontWeight: 'bold'}}>"App opened"</Text> as the "If" condition and choose the official app (e.g. Instagram).{"\n\n"}
+            5. Select <Text style={{fontWeight: 'bold'}}>"Apps &gt; Open an app or do an app action"</Text> as the "Then" action and select the <Text style={{fontWeight: 'bold'}}>OpenSocials</Text> app.{"\n\n"}
+            6. Save the routine and ensure it is enabled.
+          </Text>
+        )}
+        <Text style={styles.notificationsText}>
+          Now, whenever you receive a push notification from the official app, opening it will automatically redirect to OpenSocials instead!{"\n"}
+        </Text>
+        <Pressable
+          style={styles.infoCloseButton}
+          onPress={() => setShowNotificationsInstructions(false)}
+          accessibilityLabel="Close notifications instructions"
+        >
+          <Text style={styles.infoCloseButtonText}>Done</Text>
+        </Pressable>
+      </ScrollView>
+    );
+
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.titleBar}>
           <Text style={styles.titleText}>OpenSocials</Text>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setDropdownVisible((v) => !v)}
+            accessibilityLabel="Open settings menu"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            {/* Hamburger icon (three horizontal lines) */}
+            <View style={styles.hamburger}>
+              <View style={styles.hamburgerLine} />
+              <View style={styles.hamburgerLine} />
+              <View style={styles.hamburgerLine} />
+            </View>
+          </TouchableOpacity>
+          {/* Dropdown menu */}
+          {dropdownVisible && (
+            <View style={styles.dropdownMenu}>
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setDropdownVisible(false);
+                  setShowNotificationsInstructions(true);
+                }}
+              >
+                <Text style={styles.dropdownItemText}>Notifications</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
         <View style={styles.gridContainer}>
           {gridItems}
@@ -329,18 +397,30 @@ const App = () => {
             <View style={styles.infoModal}>
               <Text style={styles.infoTitle}>Welcome!</Text>
               <Text style={styles.infoText}>
-                Tap an icon to open a social web app.{"\n\n"}
-                You can return to the home page at any time by logging out of the web app.
+                Tap a social web app to sign in. You can return to this home page at any time by signing out again.{"\n\n"}
+                For advanced features like app notifications, tap the ☰ icon in the top right corner.
               </Text>
               <Pressable
                 style={styles.infoCloseButton}
-                onPress={() => setInfoVisible(false)}
+                onPress={() => saveInfoVisible(false)}
                 accessibilityLabel="Close info popup"
               >
                 <Text style={styles.infoCloseButtonText}>Understood</Text>
               </Pressable>
             </View>
           </View>
+        </Modal>
+        <Modal
+          visible={showNotificationsInstructions}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowNotificationsInstructions(false)}
+        >
+          <SafeAreaView style={styles.infoModalOverlay}>
+            <View style={styles.infoModal}>
+              {notificationsInstructions}
+            </View>
+          </SafeAreaView>
         </Modal>
       </SafeAreaView>
     );
@@ -492,6 +572,75 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  menuButton: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    height: 56,
+    width: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  hamburger: {
+    height: 18,
+    width: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  hamburgerLine: {
+    width: 14,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#aaa',
+    marginVertical: 2,
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 56,
+    right: 12,
+    backgroundColor: '#232323',
+    borderRadius: 8,
+    paddingVertical: 4,
+    minWidth: 140,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 20,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+  },
+  dropdownItemText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  notificationsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    minWidth: 260,
+  },
+  notificationsTitle: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  notificationsText: {
+    color: '#ccc',
+    fontSize: 15,
+    textAlign: 'left',
+    marginBottom: 12,
+    alignSelf: 'stretch',
+  },
+  hyperlink: {
+    color: '#4da3ff',
   },
   webview: {
     flex: 1,
