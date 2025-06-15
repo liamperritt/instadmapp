@@ -44,6 +44,7 @@ const App = () => {
     baseUrlShort,
     baseUrl,
     sourceUrl,
+    baseUrlIsForbidden,
     redirectFromUrls,
     openableExternalUrls,
     webAppSessionCookies,
@@ -70,10 +71,12 @@ const App = () => {
       const elementsToRemove = ${filtersConfig};
       // Hide each element by class or CSS selector
       elementsToRemove.forEach(selector => {
-        const element = document.querySelector(selector);
-        if (element) {
-          element.style.display = "none"; // Hide the element
-        }
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach(element => {
+            element.style.display = 'none';
+          });
+        } catch (error) {} // Ignore errors
       });
     };
 
@@ -85,14 +88,14 @@ const App = () => {
   const checkForLoggedInAppSession = async () => {
     try {
       const cookies = await CookieManager.get(baseUrl, true);
-      console.log("Checking Instagram login state with cookies:", cookies);
+      console.log("Checking login state with cookies:", cookies);
       // Check if the required cookies are present
       const isLoggedIn = webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
       console.log("Logged in state:", isLoggedIn);
       // Update the home screen state based on login status
       setLoggedIn(isLoggedIn);
     } catch (error) {
-      console.error("Failed to check Instagram login state:", error);
+      console.error("Failed to check login state:", error);
       setLoggedIn(false);
     }
   };
@@ -152,8 +155,8 @@ const App = () => {
   const redirectToSafety = (navState: any) => {
     console.log("Checking if we need to redirect to safety...");
     if (!webViewRef.current) return;
-    if (
-      (navState.url === baseUrl && currentUrl !== baseUrl && currentUrl !== sourceUrl && !wentBack) // Redirect from base Url, but avoid infinite loops
+    if ( // Redirect from base Url, but avoid infinite loops
+      navState.url === baseUrl && currentUrl !== baseUrl && (baseUrlIsForbidden || (currentUrl !== sourceUrl && !wentBack))
       || redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
       // Redirect to the source URL

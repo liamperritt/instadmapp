@@ -3,6 +3,7 @@ const CONFIG = {
     baseUrlShort: "instagram.com",
     baseUrl: "https://www.instagram.com",
     sourceUrl: "https://www.instagram.com/direct/inbox/",
+    baseUrlIsForbidden: false,
     redirectFromUrls: [
       "https://www.instagram.com/explore/",
       "https://www.instagram.com/reels/",
@@ -47,6 +48,48 @@ const CONFIG = {
       ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
     ],
   },
+  facebook: {
+    baseUrlShort: "facebook.com",
+    baseUrl: "https://www.facebook.com/",
+    sourceUrl: "https://www.facebook.com/bookmarks/",
+    baseUrlIsForbidden: true,
+    redirectFromUrls: [
+      "https://www.facebook.com/reel/",
+      "https://m.facebook.com/reel/",
+      "https://www.facebook.com/watch/",
+      "https://m.facebook.com/watch/",
+      "https://www.facebook.com/onthisday/",
+      "https://m.facebook.com/onthisday/",
+    ],
+    openableExternalUrls: [],
+    webAppSessionCookies: [
+      "c_user",
+      "xs",
+    ],
+    defaultFilters: [
+      // General
+      ".bottom.fixed-container.m > div:has(> div > .bg-s3.m[role='button'])", // Open App button
+      // Marketplace
+      "div[data-type='vscroller'] > div[role='tablist'] > div[role='tab'][aria-label^='feed']", // Marketplace Nav Bar
+      // Bookmarks
+      ".top.fixed-container.m > div > div > div > div[role='button'][aria-label='Back'][data-actual-height='56']", // Bookmarks back button
+      "div:has(> div > div > div[aria-label='Also From Meta, Close'])", // Also from Meta
+      // Bookmark tiles
+      "div[role='listitem']:has(> div > div[aria-label='Reels'])",
+      "div[role='listitem']:has(> div > div[aria-label='Messages'])",
+      "div[role='listitem']:has(> div > div[aria-label='Video'])",
+      "div[role='listitem']:has(> div > div[aria-label='Pages'])",
+      "div[role='listitem']:has(> div > div[aria-label='Saved'])",
+      "div[role='listitem']:has(> div > div[aria-label='Memories'])",
+      "div[role='listitem']:has(> div > div[aria-label='Games'])",
+      "div[role='listitem']:has(> div > div[aria-label='Ads Manager'])",
+      "div[role='listitem']:has(> div > div[aria-label='Feeds'])",
+      // Search
+      "div[data-type='vscroller'] > div > div[data-type='multi'] > div > div[role='button']", // Bookmark buttons
+      // Profile
+      "div[role='button'][aria-label='See all Friends']", // See all Friends button
+    ],
+  }
 }
 
 export default CONFIG;
