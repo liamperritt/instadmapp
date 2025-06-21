@@ -157,7 +157,7 @@ const App = () => {
 
   const constructInjectedJavaScript = (filtersConfig: string) => {
     console.log("Constructing injected JavaScript with filters config:", filtersConfig);
-    const injectedJavaScript = `
+    const newInjectedJavaScript = `
       removeElements = () => {
         // List of elements to hide by class or CSS selector
         const elementsToRemove = ${filtersConfig};
@@ -176,7 +176,13 @@ const App = () => {
         removeElements();
       }, 100);
     `;
-    setInjectedJavaScript(injectedJavaScript);
+    if (newInjectedJavaScript !== injectedJavaScript) {
+      console.log("Updating injected JavaScript");
+      setInjectedJavaScript(newInjectedJavaScript);
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(newInjectedJavaScript);
+      }
+    }
   };
 
   const trackNavState = (nativeEvent: any) => {
