@@ -105,8 +105,9 @@ const CONFIG: Config = {
       "div[role='button'][aria-label='See all Friends']", // See all Friends button
       // Feed
       "div:has(> div > div[role='button'][aria-label='Go to profile'])", // Write post section
-      "div[data-type='vscroller'][data-is-pull-to-refresh-allowed='true'] > div:has(> div > div > div > div.no-hscroller.hscroller.m > div.not-snappable.m[data-mcomponent='ImageArea'])", // Stories section
-      "div[data-type='vscroller'][data-is-pull-to-refresh-allowed='true'] > div[data-tracking-duration-id]", // Feed content
+      "div[data-screen-id='124'] > div[data-type='vscroller'] > div:has(> div > div > div > div.no-hscroller.hscroller.m > div.not-snappable.m[data-mcomponent='ImageArea'])", // Stories section
+      "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-tracking-duration-id]", // Post card
+      "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-on-first-visibility-action-id]", // Post loading card
     ],
   }
 }
