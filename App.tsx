@@ -54,31 +54,12 @@ const App = () => {
   const [infoVisible, setInfoVisible] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [showNotificationsInstructions, setShowNotificationsInstructions] = useState(false);
+  const [injectedJavaScript, setInjectedJavaScript] = useState("");
   const [currentUrl, setCurrentUrl] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
   const [wentBack, setWentBack] = useState(false);
   const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(config.defaultFilters));
   const [hasLoadError, setHasLoadError] = useState(false);
-
-  const injectedJavaScript = `
-    removeElements = () => {
-      // List of elements to hide by class or CSS selector
-      const elementsToRemove = ${filtersConfig};
-      // Hide each element by class or CSS selector
-      elementsToRemove.forEach(selector => {
-        try {
-          const elements = document.querySelectorAll(selector);
-          elements.forEach(element => {
-            element.style.display = 'none';
-          });
-        } catch (error) {} // Ignore errors
-      });
-    };
-
-    setInterval(() => {
-      removeElements();
-    }, 100);
-  `;
 
   const saveLoggedInWebAppId = async (appId: string) => {
     console.log("Saving logged in web app ID:", appId);
@@ -172,6 +153,30 @@ const App = () => {
     console.log("Updating config to app:", appId);
     setConfig(CONFIG[appId]);
     setConfigUrl(`${CONFIG_BASE_URL}${appId}/`);
+  };
+
+  const constructInjectedJavaScript = (filtersConfig: string) => {
+    console.log("Constructing injected JavaScript with filters config:", filtersConfig);
+    const injectedJavaScript = `
+      removeElements = () => {
+        // List of elements to hide by class or CSS selector
+        const elementsToRemove = ${filtersConfig};
+        // Hide each element by class or CSS selector
+        elementsToRemove.forEach(selector => {
+          try {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(element => {
+              element.style.display = 'none';
+            });
+          } catch (error) {} // Ignore errors
+        });
+      };
+
+      setInterval(() => {
+        removeElements();
+      }, 100);
+    `;
+    setInjectedJavaScript(injectedJavaScript);
   };
 
   const trackNavState = (nativeEvent: any) => {
@@ -280,6 +285,10 @@ const App = () => {
   useEffect(() => {
     updateConfig(webAppId);
   }, [webAppId]);
+
+  useEffect(() => {
+    constructInjectedJavaScript(filtersConfig);
+  }, [filtersConfig]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
