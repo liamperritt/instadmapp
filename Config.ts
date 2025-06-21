@@ -1,5 +1,20 @@
-const CONFIG = {
+interface Config {
+  [key: string]: {
+    webAppId: string;
+    baseUrlShort: string;
+    baseUrl: string;
+    sourceUrl: string;
+    baseUrlIsForbidden: boolean;
+    redirectFromUrls: string[];
+    openableExternalUrls: string[];
+    webAppSessionCookies: string[];
+    defaultFilters: string[];
+  };
+}
+
+const CONFIG: Config = {
   instagram: {
+    webAppId: "instagram",
     baseUrlShort: "instagram.com",
     baseUrl: "https://www.instagram.com",
     sourceUrl: "https://www.instagram.com/direct/inbox/",
@@ -49,6 +64,7 @@ const CONFIG = {
     ],
   },
   facebook: {
+    webAppId: "facebook",
     baseUrlShort: "facebook.com",
     baseUrl: "https://www.facebook.com/",
     sourceUrl: "https://www.facebook.com/bookmarks/",
@@ -56,10 +72,8 @@ const CONFIG = {
     redirectFromUrls: [
       "https://www.facebook.com/reel/",
       "https://m.facebook.com/reel/",
-      "https://www.facebook.com/watch/",
-      "https://m.facebook.com/watch/",
-      "https://www.facebook.com/onthisday/",
-      "https://m.facebook.com/onthisday/",
+      "https://www.facebook.com/notifications/",
+      "https://m.facebook.com/notifications/",
     ],
     openableExternalUrls: [],
     webAppSessionCookies: [
@@ -87,7 +101,12 @@ const CONFIG = {
       // Search
       "div[data-type='vscroller'] > div > div[data-type='multi'] > div > div[role='button']", // Bookmark buttons
       // Profile
+      "div[style*='clip-path:inset(0 0 0 0 round 30px)'] > div:has(> h4[data-mcomponent='ServerTextArea'] > div.native-text)", // Profile notification badge
       "div[role='button'][aria-label='See all Friends']", // See all Friends button
+      // Feed
+      "div:has(> div > div[role='button'][aria-label='Go to profile'])", // Write post section
+      "div[data-type='vscroller'][data-is-pull-to-refresh-allowed='true'] > div:has(> div > div > div > div.no-hscroller.hscroller.m > div.not-snappable.m[data-mcomponent='ImageArea'])", // Stories section
+      "div[data-type='vscroller'][data-is-pull-to-refresh-allowed='true'] > div[data-tracking-duration-id]", // Feed content
     ],
   }
 }

@@ -14,21 +14,25 @@ const Hyperlink = ({ url, children }: { url: string; children: React.ReactNode }
 const APP_GRID = [
   {
     name: "Instagram",
+    id: "instagram",
     icon: require("./assets/instagram.png"), // Add your icon images to assets/
     active: true,
   },
   {
     name: "Facebook",
-    icon: require("./assets/app.png"),
-    active: false,
+    id: "facebook",
+    icon: require("./assets/facebook.png"),
+    active: true,
   },
   {
     name: "X",
+    id: "x",
     icon: require("./assets/app.png"),
     active: false,
   },
   {
     name: "YouTube",
+    id: "youtube",
     icon: require("./assets/app.png"),
     active: false,
   },
@@ -36,24 +40,15 @@ const APP_GRID = [
 const GRID_ROWS = 3;
 const GRID_COLS = 2;
 
+const CONFIG_BASE_URL = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/";
+
 const App = () => {
   const webViewRef = useRef<WebView>(null);
-  const defaultWebAppName = "instagram";
-  const webAppName = defaultWebAppName;
-  const {
-    baseUrlShort,
-    baseUrl,
-    sourceUrl,
-    baseUrlIsForbidden,
-    redirectFromUrls,
-    openableExternalUrls,
-    webAppSessionCookies,
-    defaultFilters,
-  } = CONFIG[webAppName];
+  const defaultWebAppId = "instagram"; // Default web app ID
 
-  const configBaseUrl = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/";
-  const configUrl = `${configBaseUrl}${webAppName}/`;
-
+  const [webAppId, setWebAppId] = useState(defaultWebAppId);
+  const [config, setConfig] = useState(CONFIG[webAppId]);
+  const [configUrl, setConfigUrl] = useState(`${CONFIG_BASE_URL}${config.webAppId}/`);
   const [loggingIn, setLoggingIn] = useState(false);
   const [loggedIn, setLoggedIn] = useState(true);
   const [infoVisible, setInfoVisible] = useState(false);
@@ -62,7 +57,7 @@ const App = () => {
   const [currentUrl, setCurrentUrl] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
   const [wentBack, setWentBack] = useState(false);
-  const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(defaultFilters));
+  const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(config.defaultFilters));
   const [hasLoadError, setHasLoadError] = useState(false);
 
   const injectedJavaScript = `
@@ -85,19 +80,52 @@ const App = () => {
     }, 100);
   `;
 
+  const saveLoggedInWebAppId = async (appId: string) => {
+    console.log("Saving logged in web app ID:", appId);
+    try {
+      await AsyncStorage.setItem("webAppId", appId);
+      console.log("Web app ID saved successfully");
+    } catch (error) {
+      console.error("Failed to save web app ID:", error);
+    }
+  };
+
+  const determineInitialWebAppId = async () => {
+    console.log("Determining web app ID...");
+    try {
+      const value = await AsyncStorage.getItem("webAppId");
+      if (value && CONFIG[value]) {
+        console.log("Web app ID found in AsyncStorage:", value);
+        setWebAppId(value);
+      }
+    } catch (error) {
+      console.error("Failed to load web app ID from AsyncStorage:", error);
+    }
+  };
+
   const checkForLoggedInAppSession = async () => {
     try {
-      const cookies = await CookieManager.get(baseUrl, true);
-      console.log("Checking login state with cookies:", cookies);
-      // Check if the required cookies are present
-      const isLoggedIn = webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
-      console.log("Logged in state:", isLoggedIn);
-      // Update the home screen state based on login status
-      setLoggedIn(isLoggedIn);
+      // Construct list of app IDs, ensuring that webAppId is the first item and is not included in the list twice
+      const appIds: string[] = [webAppId, ...Object.keys(CONFIG).filter(id => id !== webAppId)];
+      console.log("Checking login state for app IDs:", appIds);
+      for (const id of appIds) {
+        const appConfig = CONFIG[id];
+        const cookies = await CookieManager.get(appConfig.baseUrl, true);
+        console.log("Checking login state with cookies:", cookies);
+        // Check if the required cookies are present
+        const isLoggedIn = appConfig.webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
+        console.log("Logged in state:", isLoggedIn);
+        // Update the home screen state based on login status
+        if (isLoggedIn) {
+          setLoggedIn(true);
+          await saveLoggedInWebAppId(appConfig.webAppId);
+          return;
+        }
+      }
     } catch (error) {
       console.error("Failed to check login state:", error);
-      setLoggedIn(false);
     }
+    setLoggedIn(false);
   };
 
   const loadInfoVisible = async () => {
@@ -127,15 +155,23 @@ const App = () => {
   };
 
   const fetchFiltersConfig = async () => {
-    console.log("Fetching filters config...");
+    console.log("Fetching filters config for app:", config.webAppId);
     try {
       const response = await fetch(`${configUrl}filters.json?cache_bust=true`);
       const data = await response.json();
       setFiltersConfig(JSON.stringify(data));
       console.log("Filters config fetched:", data);
+      return;
     } catch (error) {
       console.error("Failed to fetch filters config:", error);
     }
+    setFiltersConfig(JSON.stringify(config.defaultFilters)); // Fallback to default filters
+  };
+
+  const updateConfig = async (appId: string) => {
+    console.log("Updating config to app:", appId);
+    setConfig(CONFIG[appId]);
+    setConfigUrl(`${CONFIG_BASE_URL}${appId}/`);
   };
 
   const trackNavState = (nativeEvent: any) => {
@@ -156,18 +192,18 @@ const App = () => {
     console.log("Checking if we need to redirect to safety...");
     if (!webViewRef.current) return;
     if ( // Redirect from base Url, but avoid infinite loops
-      navState.url === baseUrl && currentUrl !== baseUrl && (baseUrlIsForbidden || (currentUrl !== sourceUrl && !wentBack))
-      || redirectFromUrls.some(url => navState.url.startsWith(url))
+      navState.url === config.baseUrl && currentUrl !== config.baseUrl && (config.baseUrlIsForbidden || (currentUrl !== config.sourceUrl && !wentBack))
+      || config.redirectFromUrls.some(url => navState.url.startsWith(url))
     ) {
       // Redirect to the source URL
-      console.log("Redirecting to source URL:", sourceUrl);
-      redirectToUrl(sourceUrl);
+      console.log("Redirecting to source URL:", config.sourceUrl);
+      redirectToUrl(config.sourceUrl);
     }
   };
 
   const openLinkInWebView = (nativeEvent: any) => {
     if (!webViewRef.current) return; 
-    if (nativeEvent.targetUrl.startsWith(baseUrl)) {
+    if (nativeEvent.targetUrl.startsWith(config.baseUrl)) {
       // Prevent app links from opening in the device's default browser.
       // Instead, open the link in the WebView
       webViewRef.current.injectJavaScript(`window.location.href = '${nativeEvent.targetUrl}';`);
@@ -202,7 +238,7 @@ const App = () => {
   };
 
   const handleShouldStartLoadWithRequest = (request: any) => {
-    if (!request.url.includes(baseUrlShort) && !openableExternalUrls.some(url => request.url.startsWith(url))) {
+    if (!request.url.includes(config.baseUrlShort) && !config.openableExternalUrls.some(url => request.url.startsWith(url))) {
       console.log("External link detected, opening in default browser:", request.url);
       // Open external links in the device's default browser
       Linking.openURL(request.url);
@@ -218,7 +254,7 @@ const App = () => {
 
     // Check if we are logged in
     checkForLoggedInAppSession();
-    if (loggingIn && navState.url === sourceUrl) {
+    if (loggingIn && navState.url === config.sourceUrl) {
       setLoggingIn(false); // Reset logging in state
     }
   };
@@ -233,9 +269,17 @@ const App = () => {
   };
 
   useEffect(() => {
+    determineInitialWebAppId();
     loadInfoVisible();
-    fetchFiltersConfig();
   }, []); // Run once on component mount
+
+  useEffect(() => {
+    fetchFiltersConfig();
+  }, [configUrl]);
+
+  useEffect(() => {
+    updateConfig(webAppId);
+  }, [webAppId]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
@@ -259,7 +303,10 @@ const App = () => {
             ]}
             activeOpacity={app.active ? 0.7 : 1}
             onPress={() => {
-              if (app.active) setLoggingIn(true);
+              if (app.active) {
+                setWebAppId(app.id);
+                setLoggingIn(true);
+              }
             }}
             disabled={!app.active}
           >
@@ -370,7 +417,9 @@ const App = () => {
             <View style={styles.infoModal}>
               <Text style={styles.infoTitle}>Welcome!</Text>
               <Text style={styles.infoText}>
-                Tap a social web app to sign in. You can return to this home page at any time by signing out again.{"\n\n"}
+                Welcome to OpenSocials, the open web app browser that puts you back in charge of your social media,
+                keeping you connected to your network without all the distractions and time-wasting scolling.{"\n\n"}
+                Tap a social web app to sign in. You can return to this home page at any time by signing out again.
                 For advanced features like app notifications, tap the ☰ icon in the top right corner.
               </Text>
               <Pressable
@@ -378,7 +427,7 @@ const App = () => {
                 onPress={() => saveInfoVisible(false)}
                 accessibilityLabel="Close info popup"
               >
-                <Text style={styles.infoCloseButtonText}>Understood</Text>
+                <Text style={styles.infoCloseButtonText}>Continue</Text>
               </Pressable>
             </View>
           </View>
@@ -403,7 +452,7 @@ const App = () => {
     <SafeAreaView style={styles.container}>
       <WebView style={styles.container}
         ref={webViewRef}
-        source={{ uri: sourceUrl }}
+        source={{ uri: config.sourceUrl }}
         injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
