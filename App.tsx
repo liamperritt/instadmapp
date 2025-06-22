@@ -40,26 +40,72 @@ const APP_GRID = [
 const GRID_ROWS = 3;
 const GRID_COLS = 2;
 
-const CONFIG_BASE_URL = "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/";
-
 const App = () => {
   const webViewRef = useRef<WebView>(null);
   const defaultWebAppId = "instagram"; // Default web app ID
 
-  const [webAppId, setWebAppId] = useState(defaultWebAppId);
-  const [config, setConfig] = useState(CONFIG[webAppId]);
-  const [configUrl, setConfigUrl] = useState(`${CONFIG_BASE_URL}${config.webAppId}/`);
+  const [config, setConfig] = useState(CONFIG[defaultWebAppId]);
+  const [injectedJavaScript, setInjectedJavaScript] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [loggedIn, setLoggedIn] = useState(true);
   const [infoVisible, setInfoVisible] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [showNotificationsInstructions, setShowNotificationsInstructions] = useState(false);
-  const [injectedJavaScript, setInjectedJavaScript] = useState("");
   const [currentUrl, setCurrentUrl] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
   const [wentBack, setWentBack] = useState(false);
-  const [filtersConfig, setFiltersConfig] = useState(JSON.stringify(config.defaultFilters));
   const [hasLoadError, setHasLoadError] = useState(false);
+
+  const fetchFiltersConfig = async (appId: string) => {
+    console.log("Fetching filters config for app:", appId);
+    const appConfig = CONFIG[appId];
+    try {
+      const response = await fetch(`${appConfig.configUrl}filters.json?cache_bust=true`);
+      const data = await response.json();
+      console.log("Filters config fetched:", data);
+      return JSON.stringify(data);
+    } catch (error) {
+      console.error("Failed to fetch filters config:", error);
+    }
+    return JSON.stringify(appConfig.defaultFilters); // Fallback to default filters
+  };
+
+  const constructInjectedJavaScript = (filtersConfig: string) => {
+    console.log("Constructing injected JavaScript with filters config:", filtersConfig);
+    const newInjectedJavaScript = `
+      removeElements = () => {
+        // List of elements to hide by class or CSS selector
+        const elementsToRemove = ${filtersConfig};
+        // Hide each element by class or CSS selector
+        elementsToRemove.forEach(selector => {
+          try {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(element => {
+              element.style.display = 'none';
+            });
+          } catch (error) {} // Ignore errors
+        });
+      };
+
+      setInterval(() => {
+        removeElements();
+      }, 100);
+    `;
+    if (newInjectedJavaScript !== injectedJavaScript) {
+      console.log("Updating injected JavaScript");
+      setInjectedJavaScript(newInjectedJavaScript);
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(newInjectedJavaScript);
+      }
+    }
+  };
+
+  const updateConfig = async (appId: string) => {
+    console.log("Updating config to app:", appId);
+    setConfig(CONFIG[appId]);
+    const filtersConfig = await fetchFiltersConfig(appId);
+    constructInjectedJavaScript(filtersConfig);
+  };
 
   const saveLoggedInWebAppId = async (appId: string) => {
     console.log("Saving logged in web app ID:", appId);
@@ -74,10 +120,10 @@ const App = () => {
   const determineInitialWebAppId = async () => {
     console.log("Determining web app ID...");
     try {
-      const value = await AsyncStorage.getItem("webAppId");
-      if (value && CONFIG[value]) {
-        console.log("Web app ID found in AsyncStorage:", value);
-        setWebAppId(value);
+      const appId = await AsyncStorage.getItem("webAppId");
+      if (appId && CONFIG[appId]) {
+        console.log("Web app ID found in AsyncStorage:", appId);
+        updateConfig(appId);
       }
     } catch (error) {
       console.error("Failed to load web app ID from AsyncStorage:", error);
@@ -87,7 +133,7 @@ const App = () => {
   const checkForLoggedInAppSession = async () => {
     try {
       // Construct list of app IDs, ensuring that webAppId is the first item and is not included in the list twice
-      const appIds: string[] = [webAppId, ...Object.keys(CONFIG).filter(id => id !== webAppId)];
+      const appIds: string[] = [config.webAppId, ...Object.keys(CONFIG).filter(id => id !== config.webAppId)];
       console.log("Checking login state for app IDs:", appIds);
       for (const id of appIds) {
         const appConfig = CONFIG[id];
@@ -135,56 +181,6 @@ const App = () => {
     }
   };
 
-  const fetchFiltersConfig = async () => {
-    console.log("Fetching filters config for app:", config.webAppId);
-    try {
-      const response = await fetch(`${configUrl}filters.json?cache_bust=true`);
-      const data = await response.json();
-      setFiltersConfig(JSON.stringify(data));
-      console.log("Filters config fetched:", data);
-      return;
-    } catch (error) {
-      console.error("Failed to fetch filters config:", error);
-    }
-    setFiltersConfig(JSON.stringify(config.defaultFilters)); // Fallback to default filters
-  };
-
-  const updateConfig = async (appId: string) => {
-    console.log("Updating config to app:", appId);
-    setConfig(CONFIG[appId]);
-    setConfigUrl(`${CONFIG_BASE_URL}${appId}/`);
-  };
-
-  const constructInjectedJavaScript = (filtersConfig: string) => {
-    console.log("Constructing injected JavaScript with filters config:", filtersConfig);
-    const newInjectedJavaScript = `
-      removeElements = () => {
-        // List of elements to hide by class or CSS selector
-        const elementsToRemove = ${filtersConfig};
-        // Hide each element by class or CSS selector
-        elementsToRemove.forEach(selector => {
-          try {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(element => {
-              element.style.display = 'none';
-            });
-          } catch (error) {} // Ignore errors
-        });
-      };
-
-      setInterval(() => {
-        removeElements();
-      }, 100);
-    `;
-    if (newInjectedJavaScript !== injectedJavaScript) {
-      console.log("Updating injected JavaScript");
-      setInjectedJavaScript(newInjectedJavaScript);
-      if (webViewRef.current) {
-        webViewRef.current.injectJavaScript(newInjectedJavaScript);
-      }
-    }
-  };
-
   const trackNavState = (nativeEvent: any) => {
     console.log("Tracking navigation state:", nativeEvent);
     setCurrentUrl(nativeEvent.url);
@@ -204,10 +200,11 @@ const App = () => {
     if (!webViewRef.current) return;
     if ( // Redirect from base Url, but avoid infinite loops
       navState.url === config.baseUrl && currentUrl !== config.baseUrl && (config.baseUrlIsForbidden || (currentUrl !== config.sourceUrl && !wentBack))
-      || config.redirectFromUrls.some(url => navState.url.startsWith(url))
+      || config.redirectFromExactUrls.includes(navState.url)
+      || config.redirectFromUrlPrefixes.some(url => navState.url.startsWith(url))
     ) {
       // Redirect to the source URL
-      console.log("Redirecting to source URL:", config.sourceUrl);
+      console.log("Redirecting to URL:", config.sourceUrl);
       redirectToUrl(config.sourceUrl);
     }
   };
@@ -285,18 +282,6 @@ const App = () => {
   }, []); // Run once on component mount
 
   useEffect(() => {
-    fetchFiltersConfig();
-  }, [configUrl]);
-
-  useEffect(() => {
-    updateConfig(webAppId);
-  }, [webAppId]);
-
-  useEffect(() => {
-    constructInjectedJavaScript(filtersConfig);
-  }, [filtersConfig]);
-
-  useEffect(() => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
     return () => backHandler.remove(); // Cleanup
   }, [canGoBack]); // Re-run the effect when canGoBack changes
@@ -319,7 +304,7 @@ const App = () => {
             activeOpacity={app.active ? 0.7 : 1}
             onPress={() => {
               if (app.active) {
-                setWebAppId(app.id);
+                updateConfig(app.id);
                 setLoggingIn(true);
               }
             }}

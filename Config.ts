@@ -5,10 +5,13 @@ interface Config {
     baseUrl: string;
     sourceUrl: string;
     baseUrlIsForbidden: boolean;
-    redirectFromUrls: string[];
+    // redirectToUrl: string;
+    redirectFromUrlPrefixes: string[];
+    redirectFromExactUrls: string[];
     openableExternalUrls: string[];
     webAppSessionCookies: string[];
     defaultFilters: string[];
+    configUrl: string;
   };
 }
 
@@ -19,13 +22,15 @@ const CONFIG: Config = {
     baseUrl: "https://www.instagram.com",
     sourceUrl: "https://www.instagram.com/direct/inbox/",
     baseUrlIsForbidden: false,
-    redirectFromUrls: [
+    // redirectToUrl: "https://www.instagram.com/direct/inbox/",
+    redirectFromUrlPrefixes: [
       "https://www.instagram.com/explore/",
       "https://www.instagram.com/reels/",
       "https://www.instagram.com/notifications/",
       "https://www.instagram.com/?variant=following",
       "https://www.instagram.com/?variant=favorites",
     ],
+    redirectFromExactUrls: [],
     openableExternalUrls: [
       "https://www.facebook.com/instagram/",
       "https://www.fbsbx.com/",
@@ -62,6 +67,7 @@ const CONFIG: Config = {
       // Reels
       ".xq70431.xfk6m8.xh8yej3.x5ve5x3.x13vifvy.x1rohswg.xixxii4.x1rife3k.x17qophe.xilefcg", // Reels
     ],
+    configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/instagram/",
   },
   facebook: {
     webAppId: "facebook",
@@ -69,11 +75,16 @@ const CONFIG: Config = {
     baseUrl: "https://www.facebook.com/",
     sourceUrl: "https://www.facebook.com/bookmarks/",
     baseUrlIsForbidden: true,
-    redirectFromUrls: [
+    // redirectToUrl: "https://www.facebook.com/friends/?target_pivot_link=friends",
+    redirectFromUrlPrefixes: [
       "https://www.facebook.com/reel/",
       "https://m.facebook.com/reel/",
       "https://www.facebook.com/notifications/",
       "https://m.facebook.com/notifications/",
+    ],
+    redirectFromExactUrls: [
+      "https://www.facebook.com/watch/",
+      "https://m.facebook.com/watch/",
     ],
     openableExternalUrls: [],
     webAppSessionCookies: [
@@ -101,7 +112,8 @@ const CONFIG: Config = {
       // Search
       "div[data-type='vscroller'] > div > div[data-type='multi'] > div > div[role='button']", // Bookmark buttons
       // Profile
-      "div[style*='clip-path:inset(0 0 0 0 round 30px)'] > div:has(> h4[data-mcomponent='ServerTextArea'] > div.native-text)", // Profile notification badge
+      "div[style*='clip-path:inset(0 0 0 0 round 30px)'] > div:has(> h4[data-mcomponent='ServerTextArea'])", // Profile notification badge
+      "div[role='button'][aria-label$=' friends']", // Friend count button
       "div[role='button'][aria-label='See all Friends']", // See all Friends button
       // Feed
       "div:has(> div > div[role='button'][aria-label='Go to profile'])", // Write post section
@@ -109,6 +121,7 @@ const CONFIG: Config = {
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-tracking-duration-id]", // Post card
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-on-first-visibility-action-id]", // Post loading card
     ],
+    configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/facebook/",
   }
 }
 
