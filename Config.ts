@@ -55,7 +55,7 @@ const CONFIG: Config = {
       "._ab1b._ab18 > .x1qrby5j.x7ja8zs.x1t2pt76.x1lytzrv.xedcshv.xarpa2k.x3igimt.x12ejxvf.xaigb6o.x1beo9mf.xv2umb2.x1jfb8zj.x1h9r5lt.x1h91t0o.x4k7w5x", // Threads icon
       ".x1nhvcw1.x1oa3qoh.x6s0dn4.xqjyukv.x1q0g3np.x2lah0s.x1c4vz4f.xryxfnj.x1plvlek.x1uhb9sk.xbiv7yw.x16uus16.x1ga7v0g.x15mokao.x78zum5.x3pnbk8.xjbqb8w.x9f619", // Threads username
       ".x1jfgfrl.xysbk4d.x1rlzn12.x1xdureb.xc3tme8", // Account insights
-      "div.xl56j7k.xs83m0k.x1iyjqo2.x1r8uery.x78zum5.x6s0dn4.x1c1uobl.x18d9i69.xyri2b.xexx8yu.x1lziwak.xat24cr.x14z9mp.xdj266r.html-div:has(> ._a6hd.xlxy82.x1q0q8m5.x16stqrj.x1xnnf8n.x106a9eq.xn3w4p2.x1c4vz4f.x1lku1pv.x1hl2dhg.xl56j7k.x1q0g3np.x78zum5.x6s0dn4.x1a2a7pz.xggy1nq.x16tdsg8.x18d9i69.xexx8yu.x1lziwak.xat24cr.x14z9mp.xdj266r.xe8uvvx.x1ypdohk.x9f619.x14e42zd.x10w94by.x972fbf.xstzfhl.x18oe1m7.x1ejq31n.xjbqb8w.x1i10hfl[href$='/feed/']", // Profile feed tab
+      "div.xl56j7k.xs83m0k.x1iyjqo2.x1r8uery.x78zum5.x6s0dn4.x1c1uobl.x18d9i69.xyri2b.xexx8yu.x1lziwak.xat24cr.x14z9mp.xdj266r.html-div:has(> ._a6hd.xlxy82.x1q0q8m5.x16stqrj.x1xnnf8n.x106a9eq.xn3w4p2.x1c4vz4f.x1lku1pv.x1hl2dhg.xl56j7k.x1q0g3np.x78zum5.x6s0dn4.x1a2a7pz.xggy1nq.x16tdsg8.x18d9i69.xexx8yu.x1lziwak.xat24cr.x14z9mp.xdj266r.xe8uvvx.x1ypdohk.x9f619.x14e42zd.x10w94by.x972fbf.xstzfhl.x18oe1m7.x1ejq31n.xjbqb8w.x1i10hfl[href$='/feed/'])", // Profile feed tab
       // Feed
       ".xh8yej3.xl56j7k.x1q0g3np.x78zum5.x1qjc9v5", // Feed & Stories
       ".x1n327nk.xixxii4.x1o0tod.xtijo5x", // New posts popup
