@@ -87,7 +87,9 @@ const CONFIG: Config = {
       "https://www.facebook.com/watch/",
       "https://m.facebook.com/watch/",
     ],
-    openableExternalUrls: [],
+    openableExternalUrls: [
+      "https://www.fbsbx.com/",
+    ],
     webAppSessionCookies: [
       "c_user",
       "xs",
@@ -105,7 +107,8 @@ const CONFIG: Config = {
       "div[role='listitem']:has(> div > div[aria-label='Reels'])",
       "div[role='listitem']:has(> div > div[aria-label='Messages'])",
       "div[role='listitem']:has(> div > div[aria-label='Video'])",
-      "div[role='listitem']:has(> div > div[aria-label='Pages'])",
+      "div[role='listitem']:has(> div > div[aria-label='Live videos'])",
+      "div[role='listitem'] > div:has(> div[aria-label='Pages'])",
       "div[role='listitem']:has(> div > div[aria-label='Saved'])",
       "div[role='listitem']:has(> div > div[aria-label='Memories'])",
       "div[role='listitem']:has(> div > div[aria-label='Games'])",
