@@ -83,6 +83,7 @@ const CONFIG: Config = {
       "https://m.facebook.com/notifications/",
     ],
     redirectFromExactUrls: [
+      "https://m.facebook.com/",
       "https://www.facebook.com/watch/",
       "https://m.facebook.com/watch/",
     ],
@@ -94,6 +95,7 @@ const CONFIG: Config = {
     defaultFilters: [
       // General
       ".bottom.fixed-container.m > div:has(> div > .bg-s3.m[role='button'])", // Open App button
+      "div[role='button'][data-mcomponent='ServerTextArea']:has(> div.am.ac.fl > div.native-text)", // See more videos button
       // Marketplace
       "div[data-type='vscroller'] > div[role='tablist'] > div[role='tab'][aria-label^='feed']", // Marketplace Nav Bar
       // Bookmarks

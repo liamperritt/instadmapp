@@ -141,9 +141,11 @@ const App = () => {
         console.log("Checking login state with cookies:", cookies);
         // Check if the required cookies are present
         const isLoggedIn = appConfig.webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
+        console.log("Logging in state:", loggingIn);
         console.log("Logged in state:", isLoggedIn);
         // Update the home screen state based on login status
         if (isLoggedIn) {
+          setLoggingIn(false);
           setLoggedIn(true);
           await saveLoggedInWebAppId(appConfig.webAppId);
           return;
@@ -199,7 +201,10 @@ const App = () => {
     console.log("Checking if we need to redirect to safety...");
     if (!webViewRef.current) return;
     if ( // Redirect from base Url, but avoid infinite loops
-      navState.url === config.baseUrl && currentUrl !== config.baseUrl && (config.baseUrlIsForbidden || (currentUrl !== config.sourceUrl && !wentBack))
+      navState.url === config.baseUrl && !loggingIn && (
+        config.baseUrlIsForbidden
+        || (currentUrl !== config.baseUrl && currentUrl !== config.sourceUrl && !wentBack)
+      )
       || config.redirectFromExactUrls.includes(navState.url)
       || config.redirectFromUrlPrefixes.some(url => navState.url.startsWith(url))
     ) {
@@ -258,13 +263,11 @@ const App = () => {
   const handleNavigationStateChange = (navState: any) => {
     console.log("Handling navigation state change:", navState);
     if (!webViewRef.current) return;
-    redirectToSafety(navState);
-
     // Check if we are logged in
     checkForLoggedInAppSession();
-    if (loggingIn && navState.url === config.sourceUrl) {
-      setLoggingIn(false); // Reset logging in state
-    }
+
+    // Redirect to the source URL if necessary
+    redirectToSafety(navState);
   };
 
   const handleProcessTermination = () => {
