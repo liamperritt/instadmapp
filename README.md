@@ -1,3 +1,5 @@
+OpenSocials is an open web app browser that aims to put users back in control of their social media usage, helping people stay connected without all the distractions and time-wasting scrolling.
+
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started
