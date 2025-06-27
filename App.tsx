@@ -420,8 +420,8 @@ const App = () => {
             <View style={styles.infoModal}>
               <Text style={styles.infoTitle}>Welcome!</Text>
               <Text style={styles.infoText}>
-                Welcome to OpenSocials, the open web app browser that puts you back in charge of your social media,
-                keeping you connected to your network without all the distractions and time-wasting scolling.{"\n\n"}
+                Welcome to OpenSocials, the open web app browser that puts you back in control of your social media usage,
+                helping you stay connected to your network without all the distractions and time-wasting scolling.{"\n\n"}
                 Tap a social web app to sign in. You can return to this home page at any time by signing out again.
                 For advanced features like app notifications, tap the ☰ icon in the top right corner.
               </Text>
