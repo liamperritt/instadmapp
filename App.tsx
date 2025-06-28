@@ -500,6 +500,8 @@ const App = () => {
         onRenderProcessGone={handleProcessTermination}
         allowsBackForwardNavigationGestures={true}
         pullToRefreshEnabled={true}
+        allowsInlineMediaPlayback={true}
+        mediaPlaybackRequiresUserAction={true}
       />
       {hasLoadError && (
         <View style={styles.errorOverlay}>
