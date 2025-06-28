@@ -25,20 +25,20 @@ const APP_GRID = [
     active: true,
   },
   {
-    name: "X",
-    id: "x",
-    icon: require("./assets/app.png"),
-    active: false,
-  },
-  {
     name: "YouTube",
     id: "youtube",
     icon: require("./assets/app.png"),
     active: false,
   },
+  {
+    name: "X",
+    id: "x",
+    icon: require("./assets/app.png"),
+    active: false,
+  },
 ];
-const GRID_ROWS = 3;
-const GRID_COLS = 2;
+const GRID_ROWS = 2;
+const GRID_COLS = 3;
 
 const App = () => {
   const webViewRef = useRef<WebView>(null);
@@ -81,7 +81,7 @@ const App = () => {
           try {
             const elements = document.querySelectorAll(selector);
             elements.forEach(element => {
-              element.style.display = 'none';
+              element.style.display = "none";
             });
           } catch (error) {} // Ignore errors
         });
@@ -90,9 +90,10 @@ const App = () => {
       setInterval(() => {
         removeElements();
       }, 100);
+      true;
     `;
     if (newInjectedJavaScript !== injectedJavaScript) {
-      console.log("Updating injected JavaScript");
+      console.log("Updating injected JavaScript:", newInjectedJavaScript);
       setInjectedJavaScript(newInjectedJavaScript);
       if (webViewRef.current) {
         webViewRef.current.injectJavaScript(newInjectedJavaScript);
@@ -102,7 +103,8 @@ const App = () => {
 
   const updateConfig = async (appId: string) => {
     console.log("Updating config to app:", appId);
-    setConfig(CONFIG[appId]);
+    const appConfig = CONFIG[appId];
+    setConfig(appConfig);
     const filtersConfig = await fetchFiltersConfig(appId);
     constructInjectedJavaScript(filtersConfig);
   };
@@ -201,9 +203,9 @@ const App = () => {
     console.log("Checking if we need to redirect to safety...");
     if (!webViewRef.current) return;
     if ( // Redirect from base Url, but avoid infinite loops
-      navState.url === config.baseUrl && !loggingIn && (
-        config.baseUrlIsForbidden
-        || (currentUrl !== config.baseUrl && currentUrl !== config.sourceUrl && !wentBack)
+      (
+        navState.url === config.baseUrl && config.redirectFromBaseUrl && !loggingIn
+        && currentUrl !== config.baseUrl && currentUrl !== config.sourceUrl && !wentBack
       )
       || config.redirectFromExactUrls.includes(navState.url)
       || config.redirectFromUrlPrefixes.some(url => navState.url.startsWith(url))
@@ -211,6 +213,21 @@ const App = () => {
       // Redirect to the source URL
       console.log("Redirecting to URL:", config.sourceUrl);
       redirectToUrl(config.sourceUrl);
+      return;
+    }
+
+    if (navState.url === config.baseUrl && config.redirectFromBaseUrlWithSelector) {
+      const javaScript = `
+        (function() {
+          const redirectElement = document.querySelector("${config.redirectFromBaseUrlWithSelector}");
+          if (redirectElement) {
+            window.ReactNativeWebView.postMessage('redirect');
+          }
+        })();
+        true;
+      `;
+      console.log("Injecting JavaScript to check for redirect selector:", javaScript);
+      webViewRef.current.injectJavaScript(javaScript);
     }
   };
 
@@ -220,6 +237,16 @@ const App = () => {
       // Prevent app links from opening in the device's default browser.
       // Instead, open the link in the WebView
       webViewRef.current.injectJavaScript(`window.location.href = '${nativeEvent.targetUrl}';`);
+    }
+  };
+
+  const handleMessage = (nativeEvent: any) => {
+    console.log("Received message from WebView:", nativeEvent.data);
+    if (currentUrl === config.baseUrl && nativeEvent.data === "redirect") {
+      // If the redirect selector is detected, redirect to the source URL
+      console.log("Redirecting due to selector detection");
+      if (!webViewRef.current) return;
+      redirectToUrl(config.sourceUrl);
     }
   };
 
@@ -459,7 +486,7 @@ const App = () => {
         injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
-        onMessage={() => {}}
+        onMessage={(syntheticEvent) => {handleMessage(syntheticEvent.nativeEvent)}}
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={() => <View />}

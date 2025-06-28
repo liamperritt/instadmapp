@@ -4,8 +4,8 @@ interface Config {
     baseUrlShort: string;
     baseUrl: string;
     sourceUrl: string;
-    baseUrlIsForbidden: boolean;
-    // redirectToUrl: string;
+    redirectFromBaseUrl: boolean;
+    redirectFromBaseUrlWithSelector?: string;
     redirectFromUrlPrefixes: string[];
     redirectFromExactUrls: string[];
     openableExternalUrls: string[];
@@ -21,8 +21,7 @@ const CONFIG: Config = {
     baseUrlShort: "instagram.com",
     baseUrl: "https://www.instagram.com",
     sourceUrl: "https://www.instagram.com/direct/inbox/",
-    baseUrlIsForbidden: false,
-    // redirectToUrl: "https://www.instagram.com/direct/inbox/",
+    redirectFromBaseUrl: true,
     redirectFromUrlPrefixes: [
       "https://www.instagram.com/explore/",
       "https://www.instagram.com/reels/",
@@ -75,8 +74,8 @@ const CONFIG: Config = {
     baseUrlShort: "facebook.com",
     baseUrl: "https://www.facebook.com/",
     sourceUrl: "https://www.facebook.com/bookmarks/",
-    baseUrlIsForbidden: true,
-    // redirectToUrl: "https://www.facebook.com/friends/?target_pivot_link=friends",
+    redirectFromBaseUrl: false,
+    redirectFromBaseUrlWithSelector: "div[data-screen-id='124']",
     redirectFromUrlPrefixes: [
       "https://www.facebook.com/reel/",
       "https://m.facebook.com/reel/",
@@ -84,7 +83,6 @@ const CONFIG: Config = {
       "https://m.facebook.com/notifications/",
     ],
     redirectFromExactUrls: [
-      "https://m.facebook.com/",
       "https://www.facebook.com/watch/",
       "https://m.facebook.com/watch/",
     ],
@@ -119,13 +117,14 @@ const CONFIG: Config = {
       "div[data-type='vscroller'] > div > div[data-type='multi'] > div > div[role='button']", // Bookmark buttons
       // Profile
       "div[style*='clip-path:inset(0 0 0 0 round 30px)'] > div:has(> h4[data-mcomponent='ServerTextArea'])", // Profile notification badge
-      "div[role='button'][aria-label$=' friends']", // Friend count button
-      "div[role='button'][aria-label='See all Friends']", // See all Friends button
       // Feed
       "div:has(> div > div[role='button'][aria-label='Go to profile'])", // Write post section
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div:has(> div > div > div > div.no-hscroller.hscroller.m > div.not-snappable.m[data-mcomponent='ImageArea'])", // Stories section
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-tracking-duration-id]", // Post card
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-on-first-visibility-action-id]", // Post loading card
+      // Watch
+      "div[data-type='vscroller'][data-is-pull-to-refresh-allowed='false'] > div[data-tracking-duration-id]:has(> div > div > div[role='button'][aria-label='Video player'][data-testid='sponsored-story-photo'])", // Sponsored video cards
+      "div[data-type='vscroller'][data-is-pull-to-refresh-allowed='false'] > div:has(> div > div > div[data-actual-height='37'] > h3[data-mcomponent='TextArea'])", // See more videos card
     ],
     configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/facebook/",
   }
