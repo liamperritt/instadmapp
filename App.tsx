@@ -216,7 +216,7 @@ const App = () => {
       return;
     }
 
-    if (navState.url === config.baseUrl && config.redirectFromBaseUrlWithSelector) {
+    if (config.redirectFromBaseUrlWithSelector && navState.url.endsWith(`${config.baseUrlShort}/`)) {
       const javaScript = `
         (function() {
           const redirectElement = document.querySelector("${config.redirectFromBaseUrlWithSelector}");

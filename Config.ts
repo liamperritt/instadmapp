@@ -87,6 +87,8 @@ const CONFIG: Config = {
     redirectFromExactUrls: [
       "https://www.facebook.com/watch/",
       "https://m.facebook.com/watch/",
+      "https://www.facebook.com/watch/live/",
+      "https://m.facebook.com/watch/live/",
     ],
     openableExternalUrls: [
       "https://www.fbsbx.com/",
@@ -110,8 +112,7 @@ const CONFIG: Config = {
       "div[role='listitem']:has(> div > div[aria-label='Video'])",
       "div[role='listitem']:has(> div > div[aria-label='Live videos'])",
       "div[role='listitem'] > div:has(> div[aria-label='Pages'])",
-      "div[role='listitem']:has(> div > div[aria-label='Saved'])",
-      "div[role='listitem']:has(> div > div[aria-label='Memories'])",
+      "div[role='listitem'] > div:has(> div[aria-label='Memories'])",
       "div[role='listitem']:has(> div > div[aria-label='Games'])",
       "div[role='listitem']:has(> div > div[aria-label='Ads Manager'])",
       "div[role='listitem']:has(> div > div[aria-label='Feeds'])",
@@ -125,8 +126,9 @@ const CONFIG: Config = {
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-tracking-duration-id]", // Post card
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-on-first-visibility-action-id]", // Post loading card
       // Watch
-      "div[data-type='vscroller'][data-is-pull-to-refresh-allowed='false'] > div[data-tracking-duration-id]:has(> div > div > div[role='button'][aria-label='Video player'][data-testid='sponsored-story-photo'])", // Sponsored video cards
-      "div[data-type='vscroller'][data-is-pull-to-refresh-allowed='false'] > div:has(> div > div > div[data-actual-height='37'] > h3[data-mcomponent='TextArea'])", // See more videos card
+      "div[data-type='vscroller'] > div[data-tracking-duration-id]:has(> div > div > div[role='button'][aria-label='Video player'][data-testid='sponsored-story-photo'])", // Sponsored video cards
+      "div[data-type='vscroller'] > div:has(> div > div > div[data-actual-height='37'] > h3[data-mcomponent='TextArea'])", // See more videos card 1
+      "div[data-type='vscroller'] > div:has(> div[data-actual-height='37'] > h3[data-mcomponent='TextArea'])", // See more videos card 2
     ],
     configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/facebook/",
   }
