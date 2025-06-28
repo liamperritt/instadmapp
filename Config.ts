@@ -79,6 +79,8 @@ const CONFIG: Config = {
     redirectFromUrlPrefixes: [
       "https://www.facebook.com/reel/",
       "https://m.facebook.com/reel/",
+      "https://www.facebook.com/stories/",
+      "https://m.facebook.com/stories/",
       "https://www.facebook.com/notifications/",
       "https://m.facebook.com/notifications/",
     ],
@@ -119,7 +121,7 @@ const CONFIG: Config = {
       "div[style*='clip-path:inset(0 0 0 0 round 30px)'] > div:has(> h4[data-mcomponent='ServerTextArea'])", // Profile notification badge
       // Feed
       "div:has(> div > div[role='button'][aria-label='Go to profile'])", // Write post section
-      "div[data-screen-id='124'] > div[data-type='vscroller'] > div:has(> div > div > div > div.no-hscroller.hscroller.m > div.not-snappable.m[data-mcomponent='ImageArea'])", // Stories section
+      "div[data-screen-id='124'] > div[data-type='vscroller'] > div:has(> div > div > div > div[data-is-h-scrollable='true'])", // Stories section
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-tracking-duration-id]", // Post card
       "div[data-screen-id='124'] > div[data-type='vscroller'] > div[data-on-first-visibility-action-id]", // Post loading card
       // Watch

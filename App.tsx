@@ -140,7 +140,7 @@ const App = () => {
       for (const id of appIds) {
         const appConfig = CONFIG[id];
         const cookies = await CookieManager.get(appConfig.baseUrl, true);
-        console.log("Checking login state with cookies:", cookies);
+        console.log("Checking login state with cookies");
         // Check if the required cookies are present
         const isLoggedIn = appConfig.webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
         console.log("Logging in state:", loggingIn);
@@ -242,7 +242,7 @@ const App = () => {
 
   const handleMessage = (nativeEvent: any) => {
     console.log("Received message from WebView:", nativeEvent.data);
-    if (currentUrl === config.baseUrl && nativeEvent.data === "redirect") {
+    if (nativeEvent.data === "redirect") {
       // If the redirect selector is detected, redirect to the source URL
       console.log("Redirecting due to selector detection");
       if (!webViewRef.current) return;
