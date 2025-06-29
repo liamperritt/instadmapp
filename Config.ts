@@ -10,6 +10,7 @@ interface Config {
     redirectFromExactUrls: string[];
     openableExternalUrls: string[];
     webAppSessionCookies: string[];
+    injectJavaScriptBeforeContentLoaded?: boolean;
     defaultFilters: string[];
     configUrl: string;
   };
@@ -129,8 +130,38 @@ const CONFIG: Config = {
       "div[data-type='vscroller'] > div[data-tracking-duration-id]:has(> div > div > div[role='button'][aria-label='Video player'][data-testid='sponsored-story-photo'])", // Sponsored video cards
       "div[data-type='vscroller'] > div:has(> div > div > div[data-actual-height='37'] > h3[data-mcomponent='TextArea'])", // See more videos card 1
       "div[data-type='vscroller'] > div:has(> div[data-actual-height='37'] > h3[data-mcomponent='TextArea'])", // See more videos card 2
+      "div[data-type='vscroller'] > div:has(> div.no-hscroller.hscroller.m > div > div[role='button'][aria-label^='For you'])", // Video tabs hscroller
     ],
     configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/facebook/",
+  },
+  youtube: {
+    webAppId: "youtube",
+    baseUrlShort: "youtube.com",
+    baseUrl: "https://m.youtube.com/",
+    sourceUrl: "https://m.youtube.com/feed/subscriptions/",
+    redirectFromBaseUrl: true,
+    redirectFromUrlPrefixes: [
+      "https://www.youtube.com/",
+      "https://www.youtube.com/shorts/",
+      "https://m.youtube.com/shorts/",
+    ],
+    redirectFromExactUrls: [
+    ],
+    openableExternalUrls: [
+      "https://accounts.google.com/",
+    ],
+    webAppSessionCookies: [
+      "SID",
+      "HSID",
+    ],
+    injectJavaScriptBeforeContentLoaded: true,
+    defaultFilters: [
+      "ytm-pivot-bar-item-renderer:has(> div.pivot-w2w.pivot-bar-item-tab)", // Home nav bar tab
+      "ytm-pivot-bar-item-renderer:has(> div.pivot-shorts.pivot-bar-item-tab)", // Shorts nav bar tab
+      "ytm-item-section-renderer:has(> lazy-list > ytm-reel-shelf-renderer.item)", // Shorts shelf
+      "ytm-rich-section-renderer:has(> div.rich-section-content > grid-shelf-view-model.ytGridShelfViewModelHost)", // Shorts grid shelf
+    ],
+    configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/youtube/",
   }
 }
 

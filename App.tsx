@@ -46,6 +46,7 @@ const App = () => {
 
   const [config, setConfig] = useState(CONFIG[defaultWebAppId]);
   const [injectedJavaScript, setInjectedJavaScript] = useState("");
+  const [injectedJavaScriptBeforeContentLoaded, setInjectedJavaScriptBeforeContentLoaded] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [loggedIn, setLoggedIn] = useState(true);
   const [infoVisible, setInfoVisible] = useState(false);
@@ -86,15 +87,44 @@ const App = () => {
           } catch (error) {} // Ignore errors
         });
       };
-
-      setInterval(() => {
-        removeElements();
-      }, 100);
+      const observer = new MutationObserver(removeElements);
+      observer.observe(document.body, { childList: true, subtree: true });
       true;
     `;
     if (newInjectedJavaScript !== injectedJavaScript) {
       console.log("Updating injected JavaScript:", newInjectedJavaScript);
       setInjectedJavaScript(newInjectedJavaScript);
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(newInjectedJavaScript);
+      }
+    }
+  };
+
+  const constructInjectedJavaScriptBeforeContentLoaded = () => {
+    console.log("Constructing injected JavaScript before content loaded");
+    const newInjectedJavaScript = `
+      (function() {
+        // Intercept and sanitize ytInitialPlayerResponse
+        Object.defineProperty(window, 'ytInitialPlayerResponse', {
+          set: function(value) {
+            if (value) {
+              if (value.adPlacements) delete value.adPlacements;
+              if (value.playerAds) delete value.playerAds;
+            }
+            this._ytInitialPlayerResponse = value;
+          },
+          get: function() {
+            return this._ytInitialPlayerResponse;
+          },
+          configurable: true
+        });
+        true;
+      })();
+      true;
+    `;
+    if (newInjectedJavaScript !== injectedJavaScriptBeforeContentLoaded) {
+      console.log("Updating injected JavaScript before content loaded:", newInjectedJavaScript);
+      setInjectedJavaScriptBeforeContentLoaded(newInjectedJavaScript);
       if (webViewRef.current) {
         webViewRef.current.injectJavaScript(newInjectedJavaScript);
       }
@@ -107,6 +137,11 @@ const App = () => {
     setConfig(appConfig);
     const filtersConfig = await fetchFiltersConfig(appId);
     constructInjectedJavaScript(filtersConfig);
+    if (appConfig.injectJavaScriptBeforeContentLoaded) {
+      constructInjectedJavaScriptBeforeContentLoaded();
+      return;
+    }
+    setInjectedJavaScriptBeforeContentLoaded("");
   };
 
   const saveLoggedInWebAppId = async (appId: string) => {
@@ -140,7 +175,7 @@ const App = () => {
       for (const id of appIds) {
         const appConfig = CONFIG[id];
         const cookies = await CookieManager.get(appConfig.baseUrl, true);
-        console.log("Checking login state with cookies");
+        console.log("Checking login state with cookies:", cookies);
         // Check if the required cookies are present
         const isLoggedIn = appConfig.webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
         console.log("Logging in state:", loggingIn);
@@ -484,6 +519,7 @@ const App = () => {
         ref={webViewRef}
         source={{ uri: config.sourceUrl }}
         injectedJavaScript={injectedJavaScript}
+        // injectedJavaScriptBeforeContentLoaded={config.injectJavaScriptBeforeContentLoaded ? injectedJavaScriptBeforeContentLoaded : ""}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
         onMessage={(syntheticEvent) => {handleMessage(syntheticEvent.nativeEvent)}}
