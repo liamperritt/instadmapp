@@ -87,8 +87,13 @@ const App = () => {
           } catch (error) {} // Ignore errors
         });
       };
+      // Event listener-based element removal
       const observer = new MutationObserver(removeElements);
       observer.observe(document.body, { childList: true, subtree: true });
+      // Periodically remove elements
+      setInterval(() => {
+        removeElements();
+      }, 100);
       true;
     `;
     if (newInjectedJavaScript !== injectedJavaScript) {
