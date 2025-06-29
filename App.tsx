@@ -94,6 +94,8 @@ const App = () => {
       setInterval(() => {
         removeElements();
       }, 100);
+      // Initial removal on page load
+      removeElements();
       true;
     `;
     if (newInjectedJavaScript !== injectedJavaScript) {
