@@ -4,10 +4,11 @@ interface Config {
     baseUrlShort: string;
     baseUrl: string;
     sourceUrl: string;
+    signInUrl?: string;
     redirectFromBaseUrl: boolean;
-    redirectFromBaseUrlWithSelector?: string;
     redirectFromUrlPrefixes: string[];
     redirectFromExactUrls: string[];
+    redirectFromBaseUrlWithSelector?: string;
     openableExternalUrls: string[];
     webAppSessionCookies: string[];
     injectJavaScriptBeforeContentLoaded?: boolean;
@@ -73,24 +74,20 @@ const CONFIG: Config = {
   facebook: {
     webAppId: "facebook",
     baseUrlShort: "facebook.com",
-    baseUrl: "https://www.facebook.com/",
-    sourceUrl: "https://www.facebook.com/bookmarks/",
+    baseUrl: "https://m.facebook.com/",
+    sourceUrl: "https://m.facebook.com/bookmarks/",
     redirectFromBaseUrl: false,
-    redirectFromBaseUrlWithSelector: "div[data-screen-id='124']",
     redirectFromUrlPrefixes: [
-      "https://www.facebook.com/reel/",
+      "https://www.facebook.com/",
       "https://m.facebook.com/reel/",
-      "https://www.facebook.com/stories/",
       "https://m.facebook.com/stories/",
-      "https://www.facebook.com/notifications/",
       "https://m.facebook.com/notifications/",
     ],
     redirectFromExactUrls: [
-      "https://www.facebook.com/watch/",
       "https://m.facebook.com/watch/",
-      "https://www.facebook.com/watch/live/",
       "https://m.facebook.com/watch/live/",
     ],
+    redirectFromBaseUrlWithSelector: "div[data-screen-id='124']",
     openableExternalUrls: [
       "https://www.fbsbx.com/",
     ],
@@ -104,6 +101,7 @@ const CONFIG: Config = {
       "div[role='button'][data-mcomponent='ServerTextArea']:has(> div.am.ac.fl > div.native-text)", // See more videos button
       // Marketplace
       "div[data-type='vscroller'] > div[role='tablist'] > div[role='tab'][aria-label^='feed']", // Marketplace Nav Bar
+      "div[data-type='vscroller'] > div:has(> div > div[data-tracking-duration-id] > div > div > div[data-action-id][data-focusable='true'] > div[data-mcomponent='ImageArea'][data-type='text'])", // Marketplace ads
       // Bookmarks
       ".top.fixed-container.m > div > div > div > div[role='button'][aria-label='Back'][data-actual-height='56']", // Bookmarks back button
       "div:has(> div > div > div[aria-label='Also From Meta, Close'])", // Also from Meta
@@ -139,6 +137,7 @@ const CONFIG: Config = {
     baseUrlShort: "youtube.com",
     baseUrl: "https://m.youtube.com/",
     sourceUrl: "https://m.youtube.com/feed/subscriptions/",
+    signInUrl: "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://m.youtube.com/",
     redirectFromBaseUrl: true,
     redirectFromUrlPrefixes: [
       "https://www.youtube.com/",
@@ -146,6 +145,7 @@ const CONFIG: Config = {
       "https://m.youtube.com/shorts/",
     ],
     redirectFromExactUrls: [
+      "https://m.youtube.com/",
     ],
     openableExternalUrls: [
       "https://accounts.google.com/",
@@ -156,10 +156,24 @@ const CONFIG: Config = {
     ],
     injectJavaScriptBeforeContentLoaded: true,
     defaultFilters: [
+      // General
       "ytm-pivot-bar-item-renderer:has(> div.pivot-w2w.pivot-bar-item-tab)", // Home nav bar tab
       "ytm-pivot-bar-item-renderer:has(> div.pivot-shorts.pivot-bar-item-tab)", // Shorts nav bar tab
+      // Feed
+      "ytm-browse:has(> ytm-single-column-browse-results-renderer > div > div[tab-title='Home'])", // Home feed
+      "div.rich-grid-sticky-header.rich-grid-renderer-header:has(> ytm-feed-filter-chip-bar-renderer)", // Feed filter bar
       "ytm-item-section-renderer:has(> lazy-list > ytm-reel-shelf-renderer.item)", // Shorts shelf
       "ytm-rich-section-renderer:has(> div.rich-section-content > grid-shelf-view-model.ytGridShelfViewModelHost)", // Shorts grid shelf
+      "ytm-video-with-context-renderer:has(> ytm-media-item.big-shorts-singleton)", // Shorts video
+      // Video player
+      "ytm-single-column-watch-next-results-renderer > ytm-item-section-renderer.single-column-watch-next-modern-panels.scwnr-content", // Watch next results
+      "ytm-single-column-watch-next-results-renderer > div.related-items-container", // Watch next results (signed out)
+      "ytm-single-column-watch-next-results-renderer > div > ytm-item-section-renderer:has(> lazy-list > ad-slot-renderer)", // Ads below video
+      "ytm-single-column-watch-next-results-renderer > ytm-item-section-renderer:has(> lazy-list > ad-slot-renderer)", // Ads below video (signed out)
+      "ytm-companion-slot:has(> ytm-companion-ad-renderer)", // Companion ad slot
+      "ytm-comment-replies-renderer", // Comment replies
+      "yt-button-shape:has(> a[aria-label='Open App'])", // Open App button
+      "player-endscreen.ytwPlayerEndscreenHost", // Player end screen
     ],
     configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/youtube/",
   }

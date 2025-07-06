@@ -27,8 +27,8 @@ const APP_GRID = [
   {
     name: "YouTube",
     id: "youtube",
-    icon: require("./assets/app.png"),
-    active: false,
+    icon: require("./assets/youtube.png"),
+    active: true,
   },
   {
     name: "X",
@@ -46,7 +46,6 @@ const App = () => {
 
   const [config, setConfig] = useState(CONFIG[defaultWebAppId]);
   const [injectedJavaScript, setInjectedJavaScript] = useState("");
-  const [injectedJavaScriptBeforeContentLoaded, setInjectedJavaScriptBeforeContentLoaded] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [loggedIn, setLoggedIn] = useState(true);
   const [infoVisible, setInfoVisible] = useState(false);
@@ -94,44 +93,11 @@ const App = () => {
       setInterval(() => {
         removeElements();
       }, 100);
-      // Initial removal on page load
-      removeElements();
       true;
     `;
     if (newInjectedJavaScript !== injectedJavaScript) {
       console.log("Updating injected JavaScript:", newInjectedJavaScript);
       setInjectedJavaScript(newInjectedJavaScript);
-      if (webViewRef.current) {
-        webViewRef.current.injectJavaScript(newInjectedJavaScript);
-      }
-    }
-  };
-
-  const constructInjectedJavaScriptBeforeContentLoaded = () => {
-    console.log("Constructing injected JavaScript before content loaded");
-    const newInjectedJavaScript = `
-      (function() {
-        // Intercept and sanitize ytInitialPlayerResponse
-        Object.defineProperty(window, 'ytInitialPlayerResponse', {
-          set: function(value) {
-            if (value) {
-              if (value.adPlacements) delete value.adPlacements;
-              if (value.playerAds) delete value.playerAds;
-            }
-            this._ytInitialPlayerResponse = value;
-          },
-          get: function() {
-            return this._ytInitialPlayerResponse;
-          },
-          configurable: true
-        });
-        true;
-      })();
-      true;
-    `;
-    if (newInjectedJavaScript !== injectedJavaScriptBeforeContentLoaded) {
-      console.log("Updating injected JavaScript before content loaded:", newInjectedJavaScript);
-      setInjectedJavaScriptBeforeContentLoaded(newInjectedJavaScript);
       if (webViewRef.current) {
         webViewRef.current.injectJavaScript(newInjectedJavaScript);
       }
@@ -144,11 +110,6 @@ const App = () => {
     setConfig(appConfig);
     const filtersConfig = await fetchFiltersConfig(appId);
     constructInjectedJavaScript(filtersConfig);
-    if (appConfig.injectJavaScriptBeforeContentLoaded) {
-      constructInjectedJavaScriptBeforeContentLoaded();
-      return;
-    }
-    setInjectedJavaScriptBeforeContentLoaded("");
   };
 
   const saveLoggedInWebAppId = async (appId: string) => {
@@ -182,7 +143,7 @@ const App = () => {
       for (const id of appIds) {
         const appConfig = CONFIG[id];
         const cookies = await CookieManager.get(appConfig.baseUrl, true);
-        console.log("Checking login state with cookies:", cookies);
+        console.log("Checking login state with cookies");
         // Check if the required cookies are present
         const isLoggedIn = appConfig.webAppSessionCookies.every(cookieName => cookies[cookieName] && cookies[cookieName].value);
         console.log("Logging in state:", loggingIn);
@@ -244,7 +205,14 @@ const App = () => {
   const redirectToSafety = (navState: any) => {
     console.log("Checking if we need to redirect to safety...");
     if (!webViewRef.current) return;
-    if ( // Redirect from base Url, but avoid infinite loops
+    // If we are logging in, redirect to the sign-in URL if it exists
+    if (!loggedIn && loggingIn && config.signInUrl && (navState.url == config.sourceUrl || navState.url == config.baseUrl)) {
+      console.log("Redirecting to sign-in URL:", config.signInUrl);
+      redirectToUrl(config.signInUrl);
+      return;
+    }
+    // Redirect from base Url, but avoid infinite loops
+    if (
       (
         navState.url === config.baseUrl && config.redirectFromBaseUrl && !loggingIn
         && currentUrl !== config.baseUrl && currentUrl !== config.sourceUrl && !wentBack
@@ -284,10 +252,10 @@ const App = () => {
 
   const handleMessage = (nativeEvent: any) => {
     console.log("Received message from WebView:", nativeEvent.data);
+    if (!webViewRef.current) return;
     if (nativeEvent.data === "redirect") {
       // If the redirect selector is detected, redirect to the source URL
       console.log("Redirecting due to selector detection");
-      if (!webViewRef.current) return;
       redirectToUrl(config.sourceUrl);
     }
   };
@@ -490,7 +458,7 @@ const App = () => {
               <Text style={styles.infoTitle}>Welcome!</Text>
               <Text style={styles.infoText}>
                 Welcome to OpenSocials, the open web app browser that puts you back in control of your social media usage,
-                helping you stay connected to your network without all the distractions and time-wasting scolling.{"\n\n"}
+                keeping you connected without all the distractions and time-wasting scolling.{"\n\n"}
                 Tap a social web app to sign in. You can return to this home page at any time by signing out again.
                 For advanced features like app notifications, tap the ☰ icon in the top right corner.
               </Text>
@@ -526,7 +494,6 @@ const App = () => {
         ref={webViewRef}
         source={{ uri: config.sourceUrl }}
         injectedJavaScript={injectedJavaScript}
-        // injectedJavaScriptBeforeContentLoaded={config.injectJavaScriptBeforeContentLoaded ? injectedJavaScriptBeforeContentLoaded : ""}
         javaScriptEnabled={true}
         javaScriptCanOpenWindowsAutomatically={true}
         onMessage={(syntheticEvent) => {handleMessage(syntheticEvent.nativeEvent)}}
@@ -545,6 +512,7 @@ const App = () => {
         pullToRefreshEnabled={true}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={true}
+        contentMode={"mobile"}
       />
       {hasLoadError && (
         <View style={styles.errorOverlay}>
