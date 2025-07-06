@@ -510,8 +510,9 @@ const App = () => {
         onRenderProcessGone={handleProcessTermination}
         allowsBackForwardNavigationGestures={true}
         pullToRefreshEnabled={true}
-        allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={true}
+        allowsInlineMediaPlayback={true}
+        allowsPictureInPictureMediaPlayback={true}
         contentMode={"mobile"}
       />
       {hasLoadError && (
