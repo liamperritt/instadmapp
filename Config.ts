@@ -176,6 +176,7 @@ const CONFIG: Config = {
       "player-endscreen.ytwPlayerEndscreenHost", // Player end screen
       // Profiles
       "yt-tab-shape[tab-title='Shorts']", // Profile Shorts tab
+      "ytm-shorts-lockup-view-model", // Profile Shorts
     ],
     configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/youtube/",
   }
