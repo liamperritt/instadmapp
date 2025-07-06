@@ -160,7 +160,7 @@ const CONFIG: Config = {
       "ytm-pivot-bar-item-renderer:has(> div.pivot-w2w.pivot-bar-item-tab)", // Home nav bar tab
       "ytm-pivot-bar-item-renderer:has(> div.pivot-shorts.pivot-bar-item-tab)", // Shorts nav bar tab
       // Feed
-      "ytm-browse:has(> ytm-single-column-browse-results-renderer > div > div[tab-title='Home'])", // Home feed
+      "ytm-browse:has(> ytm-single-column-browse-results-renderer > div > div[tab-identifier='FEwhat_to_watch'])", // Home feed
       "div.rich-grid-sticky-header.rich-grid-renderer-header:has(> ytm-feed-filter-chip-bar-renderer)", // Feed filter bar
       "ytm-item-section-renderer:has(> lazy-list > ytm-reel-shelf-renderer.item)", // Shorts shelf
       "ytm-rich-section-renderer:has(> div.rich-section-content > grid-shelf-view-model.ytGridShelfViewModelHost)", // Shorts grid shelf
@@ -174,6 +174,8 @@ const CONFIG: Config = {
       "ytm-comment-replies-renderer", // Comment replies
       "yt-button-shape:has(> a[aria-label='Open App'])", // Open App button
       "player-endscreen.ytwPlayerEndscreenHost", // Player end screen
+      // Profiles
+      "yt-tab-shape[tab-title='Shorts']", // Profile Shorts tab
     ],
     configUrl: "https://raw.githubusercontent.com/liamperritt/social-minimalist-config/refs/heads/main/config/youtube/",
   }
