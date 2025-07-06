@@ -423,11 +423,11 @@ const App = () => {
             accessibilityLabel="Open settings menu"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            {/* Hamburger icon (three horizontal lines) */}
-            <View style={styles.hamburger}>
-              <View style={styles.hamburgerLine} />
-              <View style={styles.hamburgerLine} />
-              <View style={styles.hamburgerLine} />
+            {/* Kebab menu icon (three horizontal dots) */}
+            <View style={styles.kebabMenu}>
+              <View style={styles.kebabDot} />
+              <View style={styles.kebabDot} />
+              <View style={styles.kebabDot} />
             </View>
           </TouchableOpacity>
           {/* Dropdown menu */}
@@ -460,7 +460,7 @@ const App = () => {
                 Welcome to OpenSocials, the open web app browser that puts you back in control of your social media usage,
                 keeping you connected without all the distractions and time-wasting scolling.{"\n\n"}
                 Tap a social web app to sign in. You can return to this home page at any time by signing out again.
-                For advanced features like app notifications, tap the ☰ icon in the top right corner.
+                For advanced features like app notifications, tap the ⋮ icon in the top right corner.
               </Text>
               <Pressable
                 style={styles.infoCloseButton}
@@ -648,18 +648,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
-  hamburger: {
-    height: 18,
-    width: 18,
+  kebabMenu: {
+    height: 14,
+    width: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'column',
   },
-  hamburgerLine: {
-    width: 14,
-    height: 2,
-    borderRadius: 1,
+  kebabDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
     backgroundColor: '#aaa',
-    marginVertical: 2,
+    marginVertical: 1.5,
   },
   dropdownMenu: {
     position: 'absolute',
