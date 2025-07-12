@@ -71,8 +71,11 @@ const App = () => {
   };
 
   const constructInjectedJavaScript = (filtersConfig: string) => {
+    const unmuteSelectorsString = JSON.stringify(config.unmuteSelectors || []);
+    const clickSelectorsString = JSON.stringify(config.clickSelectors || []);
     console.log("Constructing injected JavaScript with filters config:", filtersConfig);
     const newInjectedJavaScript = `
+      // Function to remove elements based on filters config
       removeElements = () => {
         // List of elements to hide by class or CSS selector
         const elementsToRemove = ${filtersConfig};
@@ -82,16 +85,51 @@ const App = () => {
             const elements = document.querySelectorAll(selector);
             elements.forEach(element => {
               element.style.display = "none";
+              element.muted = true;
             });
           } catch (error) {} // Ignore errors
         });
       };
-      // Event listener-based element removal
-      const observer = new MutationObserver(removeElements);
-      observer.observe(document.body, { childList: true, subtree: true });
-      // Periodically remove elements
-      setInterval(() => {
+
+      // Function to unmute videos
+      const unmuteMedia = () => {
+        const unmuteSelectors = ${unmuteSelectorsString};
+        unmuteSelectors.forEach(selector => {
+          try {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(element => {
+              element.muted = false;
+            });
+          } catch (error) {} // Ignore errors
+        });
+      };
+
+      // Function to click buttons based on selectors
+      // const clickButtons = () => {
+      //   const clickButtonSelectors = ${clickSelectorsString};
+      //   clickButtonSelectors.forEach(selector => {
+      //     try {
+      //       const elements = document.querySelectorAll(selector);
+      //       elements.forEach(element => {
+      //         element.click();
+      //       });
+      //     } catch (error) {} // Ignore errors
+      //   });
+      // };
+
+      const processSelectors = () => {
         removeElements();
+        unmuteMedia();
+        // clickButtons();
+      };
+
+      // Event listener-based selector processing
+      const observer = new MutationObserver(processSelectors);
+      observer.observe(document.body, { childList: true, subtree: true });
+      
+      // Periodically run functions
+      setInterval(() => {
+        processSelectors();
       }, 100);
       true;
     `;
@@ -513,6 +551,7 @@ const App = () => {
         mediaPlaybackRequiresUserAction={true}
         allowsInlineMediaPlayback={true}
         allowsPictureInPictureMediaPlayback={true}
+        allowsFullscreenVideo={true}
         contentMode={"mobile"}
       />
       {hasLoadError && (

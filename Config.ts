@@ -11,7 +11,8 @@ interface Config {
     redirectFromBaseUrlWithSelector?: string;
     openableExternalUrls: string[];
     webAppSessionCookies: string[];
-    injectJavaScriptBeforeContentLoaded?: boolean;
+    unmuteSelectors?: string[];
+    clickSelectors?: string[];
     defaultFilters: string[];
     configUrl: string;
   };
@@ -154,7 +155,12 @@ const CONFIG: Config = {
       "SID",
       "HSID",
     ],
-    injectJavaScriptBeforeContentLoaded: true,
+    unmuteSelectors: [
+      "div[aria-label='YouTube Video Player']:not([class~='ad-showing']) > div > video",
+    ],
+    clickSelectors: [
+      "button.ytp-button.ytp-ad-skip-button-modern",
+    ],
     defaultFilters: [
       // General
       "ytm-pivot-bar-item-renderer:has(> div.pivot-w2w.pivot-bar-item-tab)", // Home nav bar tab
@@ -173,7 +179,9 @@ const CONFIG: Config = {
       "ytm-companion-slot:has(> ytm-companion-ad-renderer)", // Companion ad slot
       "ytm-comment-replies-renderer", // Comment replies
       "yt-button-shape:has(> a[aria-label='Open App'])", // Open App button
-      "player-endscreen.ytwPlayerEndscreenHost", // Player end screen
+      "player-endscreen", // Player end screen
+      "yt-comment-teaser-carousel-item-view-model", // Comment teaser carousel item
+      "div[aria-label='YouTube Video Player'][class~='ad-showing'] > div > video", // Video player ad
       // Profiles
       "yt-tab-shape[tab-title='Shorts']", // Profile Shorts tab
       "ytm-shorts-lockup-view-model", // Profile Shorts
