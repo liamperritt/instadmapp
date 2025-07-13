@@ -177,6 +177,7 @@ const CONFIG: Config = {
       "yt-button-shape:has(> a[aria-label='Open App'])", // Open App button
       "player-endscreen", // Player end screen
       "yt-comment-teaser-carousel-item-view-model", // Comment teaser carousel item
+      "div.fullscreen-watch-next-entrypoint-wrapper", // Fullscreen watch next entrypoint
       "div[aria-label='YouTube Video Player'][class~='ad-showing'] > div > video", // Video player ad
       // Profiles
       "yt-tab-shape[tab-title='Shorts']", // Profile Shorts tab
