@@ -71,8 +71,6 @@ const App = () => {
   };
 
   const constructInjectedJavaScript = (filtersConfig: string) => {
-    const unmuteSelectorsString = JSON.stringify(config.unmuteSelectors || []);
-    const clickSelectorsString = JSON.stringify(config.clickSelectors || []);
     console.log("Constructing injected JavaScript with filters config:", filtersConfig);
     const newInjectedJavaScript = `
       // Function to remove elements based on filters config
@@ -85,51 +83,21 @@ const App = () => {
             const elements = document.querySelectorAll(selector);
             elements.forEach(element => {
               element.style.display = "none";
-              element.muted = true;
+              if (element.tagName.toLowerCase() === "video") {
+                element.volume = 0;
+              }
             });
           } catch (error) {} // Ignore errors
         });
-      };
-
-      // Function to unmute videos
-      const unmuteMedia = () => {
-        const unmuteSelectors = ${unmuteSelectorsString};
-        unmuteSelectors.forEach(selector => {
-          try {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(element => {
-              element.muted = false;
-            });
-          } catch (error) {} // Ignore errors
-        });
-      };
-
-      // Function to click buttons based on selectors
-      // const clickButtons = () => {
-      //   const clickButtonSelectors = ${clickSelectorsString};
-      //   clickButtonSelectors.forEach(selector => {
-      //     try {
-      //       const elements = document.querySelectorAll(selector);
-      //       elements.forEach(element => {
-      //         element.click();
-      //       });
-      //     } catch (error) {} // Ignore errors
-      //   });
-      // };
-
-      const processSelectors = () => {
-        removeElements();
-        unmuteMedia();
-        // clickButtons();
       };
 
       // Event listener-based selector processing
-      const observer = new MutationObserver(processSelectors);
+      const observer = new MutationObserver(removeElements);
       observer.observe(document.body, { childList: true, subtree: true });
       
       // Periodically run functions
       setInterval(() => {
-        processSelectors();
+        removeElements();
       }, 100);
       true;
     `;
