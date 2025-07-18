@@ -11,6 +11,7 @@ interface Config {
     redirectFromBaseUrlWithSelector?: string;
     openableExternalUrls: string[];
     webAppSessionCookies: string[];
+    unhideSelectors?: string[];
     clickSelectors?: string[];
     defaultFilters: string[];
     configUrl: string;
@@ -153,6 +154,9 @@ const CONFIG: Config = {
     webAppSessionCookies: [
       "SID",
       "HSID",
+    ],
+    unhideSelectors: [
+      "div[aria-label='YouTube Video Player']:not([class~='ad-showing']) > div > video",
     ],
     clickSelectors: [
       "button.ytp-button.ytp-ad-skip-button-modern",

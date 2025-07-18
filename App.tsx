@@ -60,10 +60,10 @@ const App = () => {
     console.log("Fetching filters config for app:", appId);
     const appConfig = CONFIG[appId];
     try {
-      const response = await fetch(`${appConfig.configUrl}filters.json?cache_bust=true`);
-      const data = await response.json();
-      console.log("Filters config fetched:", data);
-      return JSON.stringify(data);
+      // const response = await fetch(`${appConfig.configUrl}filters.json?cache_bust=true`);
+      // const data = await response.json();
+      // console.log("Filters config fetched:", data);
+      // return JSON.stringify(data);
     } catch (error) {
       console.error("Failed to fetch filters config:", error);
     }
@@ -73,12 +73,12 @@ const App = () => {
   const constructInjectedJavaScript = (filtersConfig: string) => {
     console.log("Constructing injected JavaScript with filters config:", filtersConfig);
     const newInjectedJavaScript = `
-      // Function to remove elements based on filters config
-      removeElements = () => {
+      // Function to hide elements based on filters config
+      hideElements = () => {
         // List of elements to hide by class or CSS selector
-        const elementsToRemove = ${filtersConfig};
+        const elementsToHide = ${filtersConfig};
         // Hide each element by class or CSS selector
-        elementsToRemove.forEach(selector => {
+        elementsToHide.forEach(selector => {
           try {
             const elements = document.querySelectorAll(selector);
             elements.forEach(element => {
@@ -91,13 +91,35 @@ const App = () => {
         });
       };
 
+      // Function to unhide elements based on config
+      unhideElements = () => {
+        // List of elements to unhide by class or CSS selector
+        const elementsToUnhide = ${JSON.stringify(config.unhideSelectors || [])};
+        // Unhide each element by class or CSS selector
+        elementsToUnhide.forEach(selector => {
+          try {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(element => {
+              element.style.display = "block"; // Restore display for hidden elements
+              element.volume = 1; // Restore volume for videos
+              element.muted = false; // Restore mute state for videos
+            });
+          } catch (error) {} // Ignore errors
+        });
+      };
+
+      processSelectors = () => {
+        hideElements();
+        unhideElements();
+      };
+
       // Event listener-based selector processing
-      const observer = new MutationObserver(removeElements);
+      const observer = new MutationObserver(processSelectors);
       observer.observe(document.body, { childList: true, subtree: true });
       
       // Periodically run functions
       setInterval(() => {
-        removeElements();
+        processSelectors();
       }, 100);
       true;
     `;
