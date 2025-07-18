@@ -60,10 +60,10 @@ const App = () => {
     console.log("Fetching filters config for app:", appId);
     const appConfig = CONFIG[appId];
     try {
-      // const response = await fetch(`${appConfig.configUrl}filters.json?cache_bust=true`);
-      // const data = await response.json();
-      // console.log("Filters config fetched:", data);
-      // return JSON.stringify(data);
+      const response = await fetch(`${appConfig.configUrl}filters.json?cache_bust=true`);
+      const data = await response.json();
+      console.log("Filters config fetched:", data);
+      return JSON.stringify(data);
     } catch (error) {
       console.error("Failed to fetch filters config:", error);
     }
