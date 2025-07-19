@@ -114,6 +114,7 @@ const App = () => {
             if (element) {
               element.volume = 1; // Restore volume for media elements
               element.muted = false; // Restore mute state for media elements
+              element.style.display = ""; // Ensure the element is visible
             }
           } catch (error) {} // Ignore errors
         });
