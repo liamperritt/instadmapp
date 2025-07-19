@@ -115,6 +115,7 @@ const CONFIG: Config = {
       "div[role='listitem']:has(> div > div[aria-label='Games'])",
       "div[role='listitem']:has(> div > div[aria-label='Ads Manager'])",
       "div[role='listitem']:has(> div > div[aria-label='Feeds'])",
+      "div[role='listitem']:has(> div > div[aria-label='Birthdays'])",
       // Search
       "div[data-type='vscroller'] > div > div[data-type='multi'] > div > div[role='button']", // Bookmark buttons
       // Profile
