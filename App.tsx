@@ -83,34 +83,46 @@ const App = () => {
             const elements = document.querySelectorAll(selector);
             elements.forEach(element => {
               element.style.display = "none";
-              if (element.tagName.toLowerCase() === "video") {
-                element.volume = 0;
-              }
             });
           } catch (error) {} // Ignore errors
         });
       };
 
-      // Function to unhide elements based on config
-      unhideElements = () => {
-        // List of elements to unhide by class or CSS selector
-        const elementsToUnhide = ${JSON.stringify(config.unhideSelectors || [])};
-        // Unhide each element by class or CSS selector
-        elementsToUnhide.forEach(selector => {
+      // Function to mute elements based on config
+      muteElements = () => {
+        // List of elements to mute by class or CSS selector
+        const elementsToMute = ["div[aria-label='YouTube Video Player'][class*='ad-showing'] > div > video"];
+        // Mute each element by class or CSS selector
+        elementsToMute.forEach(selector => {
           try {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(element => {
-              element.style.display = "block"; // Restore display for hidden elements
-              element.volume = 1; // Restore volume for videos
-              element.muted = false; // Restore mute state for videos
-            });
+            const element = document.querySelector(selector);
+            if (element) {
+              element.volume = 0; // Mute media elements
+            }
+          } catch (error) {} // Ignore errors
+        });
+      };
+
+      // Function to unmute elements based on config
+      unmuteElements = () => {
+        // List of elements to unmute by class or CSS selector
+        const elementsToUnmute = ["div[aria-label='YouTube Video Player']:not([class*='ad-showing']) > div > video"];
+        // Unmute each element by class or CSS selector
+        elementsToUnmute.forEach(selector => {
+          try {
+            const element = document.querySelector(selector);
+            if (element) {
+              element.volume = 1; // Restore volume for media elements
+              element.muted = false; // Restore mute state for media elements
+            }
           } catch (error) {} // Ignore errors
         });
       };
 
       processSelectors = () => {
         hideElements();
-        unhideElements();
+        muteElements();
+        unmuteElements();
       };
 
       // Event listener-based selector processing
